@@ -33,19 +33,73 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 에러 처리 함수
+# 에러 처리 함수 (SSH 연결 보호)
 cleanup_on_error() {
     log_error "스크립트 실행 중 에러가 발생했습니다!"
+    log_warning "정리 작업을 수행합니다. SSH 연결은 유지됩니다."
     
-    # 강제 종료
-    sudo fuser -km "$WORK_DIR/chroot" 2>/dev/null || true
-    sleep 2
+    # SSH 연결을 보호하면서 안전한 프로세스 종료
+    if [[ -d "$WORK_DIR/chroot" ]]; then
+        # chroot 내부의 프로세스들을 안전하게 종료
+        local chroot_pids=$(sudo lsof +D "$WORK_DIR/chroot" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u 2>/dev/null || true)
+        
+        if [[ -n "$chroot_pids" ]]; then
+            log_info "chroot 관련 프로세스 정리 중..."
+            for pid in $chroot_pids; do
+                # SSH 관련 프로세스와 현재 쉘 세션은 제외
+                if [[ -n "$pid" ]] && [[ "$pid" != "$$" ]]; then
+                    local process_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
+                    if [[ "$process_name" != "sshd" ]] && [[ "$process_name" != "ssh" ]] && [[ ! "$process_name" =~ bash|sh ]]; then
+                        sudo kill -TERM "$pid" 2>/dev/null || true
+                    fi
+                fi
+            done
+            
+            # 잠시 대기 후 강제 종료 (SSH 제외)
+            sleep 3
+            for pid in $chroot_pids; do
+                if [[ -n "$pid" ]] && [[ "$pid" != "$$" ]]; then
+                    local process_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
+                    if [[ "$process_name" != "sshd" ]] && [[ "$process_name" != "ssh" ]] && [[ ! "$process_name" =~ bash|sh ]]; then
+                        sudo kill -KILL "$pid" 2>/dev/null || true
+                    fi
+                fi
+            done
+        fi
+    fi
     
-    # chroot 마운트 해제 (에러 무시)
-    sudo umount "$WORK_DIR/chroot/dev/pts" 2>/dev/null || true
-    sudo umount "$WORK_DIR/chroot/dev" 2>/dev/null || true
-    sudo umount "$WORK_DIR/chroot/proc" 2>/dev/null || true
-    sudo umount "$WORK_DIR/chroot/sys" 2>/dev/null || true
+    # 안전한 마운트 해제 (여러 번 시도)
+    log_info "마운트 포인트 정리 중..."
+    for i in {1..3}; do
+        sudo umount "$WORK_DIR/chroot/dev/pts" 2>/dev/null && break
+        sleep 1
+    done
+    
+    for i in {1..3}; do
+        sudo umount "$WORK_DIR/chroot/dev" 2>/dev/null && break  
+        sleep 1
+    done
+    
+    for i in {1..3}; do
+        if sudo umount "$WORK_DIR/chroot/proc" 2>/dev/null; then
+            break
+        elif [[ $i -eq 3 ]]; then
+            sudo umount -l "$WORK_DIR/chroot/proc" 2>/dev/null || true
+        fi
+        sleep 1
+    done
+    
+    for i in {1..3}; do
+        if sudo umount "$WORK_DIR/chroot/sys" 2>/dev/null; then
+            break
+        elif [[ $i -eq 3 ]]; then
+            sudo umount -l "$WORK_DIR/chroot/sys" 2>/dev/null || true
+        fi
+        sleep 1
+    done
+    
+    log_warning "정리 작업이 완료되었습니다. 터미널 연결은 안전합니다."
+    log_info "필요한 경우 'sudo rm -rf $WORK_DIR'로 수동 정리하세요."
     
     exit 1
 }
@@ -89,12 +143,67 @@ log_info "[5/13] chroot 설정 스크립트 생성 중..."
 cat > chroot_setup.sh << 'EOF'
 #!/bin/bash
 
-# chroot 환경에서 실행될 스크립트
+# chroot 환경에서 실행될 스크립트 (개선된 에러 처리)
 set -e
 
 # 환경 변수 설정
 export DEBIAN_FRONTEND=noninteractive
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# 색상 코드
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# 로그 함수들
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# 안전한 패키지 설치 함수
+install_package_safe() {
+    local package="$1"
+    local is_required="${2:-true}"
+    
+    if apt install -y "$package" 2>/dev/null; then
+        log_success "$package 설치 완료"
+        return 0
+    else
+        if [[ "$is_required" == "true" ]]; then
+            log_error "$package 설치 실패 (필수 패키지)"
+            return 1
+        else
+            log_warning "$package 설치 실패 (선택적 패키지, 계속 진행)"
+            return 0
+        fi
+    fi
+}
+
+# 여러 패키지 설치 함수 
+install_packages_safe() {
+    local is_required="${1:-true}"
+    shift
+    local packages=("$@")
+    local failed_packages=()
+    
+    for package in "${packages[@]}"; do
+        if ! install_package_safe "$package" "$is_required"; then
+            if [[ "$is_required" == "true" ]]; then
+                failed_packages+=("$package")
+            fi
+        fi
+    done
+    
+    if [[ ${#failed_packages[@]} -gt 0 ]] && [[ "$is_required" == "true" ]]; then
+        log_error "다음 필수 패키지 설치에 실패했습니다: ${failed_packages[*]}"
+        return 1
+    fi
+    
+    return 0
+}
 
 # 기본 설정
 echo "hemmins-os" > /etc/hostname
@@ -113,24 +222,80 @@ SOURCES_EOF
 echo "패키지 업데이트 중..."
 apt update
 
-echo "커널 및 필수 패키지 설치 중..."
-apt install -y linux-image-amd64 linux-headers-amd64
-apt install -y live-boot live-boot-initramfs-tools initramfs-tools
-apt install -y systemd-sysv network-manager openssh-server
-apt install -y sudo curl wget htop nano vim net-tools
-apt install -y locales console-setup keyboard-configuration
+log_info "커널 및 필수 패키지 설치 중..."
+# 필수 커널 패키지
+install_packages_safe true linux-image-amd64 linux-headers-amd64
+# 필수 라이브 부트 패키지
+install_packages_safe true live-boot live-boot-initramfs-tools initramfs-tools
+# 필수 시스템 패키지
+install_packages_safe true systemd-sysv network-manager openssh-server
+# 기본 도구들
+install_packages_safe true sudo curl wget htop nano vim net-tools
+# 로케일 및 콘솔 설정
+install_packages_safe true locales console-setup keyboard-configuration
 
-# 한글 폰트 및 언어 패키지 추가 (Debian용)
-echo "한글 지원 패키지 설치 중..."
-apt install -y fonts-nanum fonts-nanum-coding fonts-nanum-extra
-apt install -y fonts-unfonts-core fonts-baekmuk
-# language-pack-ko 제거 (Debian에 없음)
-# apt install -y language-pack-ko language-pack-ko-base
-apt install -y fcitx5 fcitx5-hangul fcitx5-config-qt
+# ===========================================
+# Debian 공식 한국어 지원 패키지 완전 설정
+# 설치 후에도 터미널에서 한글이 완벽하게 지원됨
+# ===========================================
 
-echo "설치에 필요한 패키지들 설치 중..."
-# 설치에 필요한 패키지들
-apt install -y parted rsync grub-efi-amd64 grub2-common
+log_info "Debian 공식 한국어 지원 패키지 완전 설치 중..."
+
+# 1. Debian 태스크 패키지 (한국어 환경 완전 구성)
+log_info "Debian 한국어 태스크 패키지 설치 시도..."
+install_package_safe task-korean false
+install_package_safe task-korean-desktop false
+
+# 2. 모든 로케일 지원 (한국어 포함)
+log_info "전체 로케일 패키지 설치..."
+install_package_safe locales-all false
+
+# 3. 최고 품질의 CJK 폰트 (필수) - Google Noto
+log_info "고품질 한중일 폰트 설치..."
+install_packages_safe true fonts-noto-cjk fonts-noto-cjk-extra
+install_package_safe fonts-noto-color-emoji false
+
+# 4. 기본 한글 폰트 (필수) - 나눔폰트
+log_info "기본 한글 폰트 설치..."
+install_packages_safe true fonts-nanum fonts-nanum-coding fonts-nanum-extra
+
+# 5. 추가 한글 폰트 (선택적)
+log_info "추가 한글 폰트 설치..."
+install_packages_safe false fonts-unfonts-core fonts-baekmuk fonts-dejavu
+install_packages_safe false fonts-liberation fonts-liberation2
+install_package_safe ttf-unfonts-core false
+install_package_safe xfonts-baekmuk false
+
+# 6. 한글 입력기 완전 지원 (필수)
+log_info "한글 입력기 완전 설정..."
+install_packages_safe true fcitx5 fcitx5-hangul fcitx5-config-qt
+install_package_safe im-config true
+# fcitx5 프론트엔드 (데스크톱 환경용)
+install_package_safe fcitx5-frontend-gtk2 false
+install_package_safe fcitx5-frontend-gtk3 false
+install_package_safe fcitx5-frontend-qt5 false
+
+# 7. 한국어 매뉴얼 및 도구
+log_info "한국어 매뉴얼 및 도구 설치..."
+install_package_safe manpages-ko false        # 한국어 매뉴얼
+install_package_safe hunspell-ko false        # 한국어 맞춤법 검사
+install_package_safe aspell-ko false          # 한국어 철자 검사
+install_package_safe mythes-ko false          # 한국어 동의어 사전
+
+# 8. 콘솔 환경 한글 지원 강화
+log_info "콘솔 한글 지원 강화 설치..."
+# 유니코드 폰트 (필수) - 콘솔에서 한글 표시
+install_package_safe unifont true
+# 콘솔 한글 도구들 (선택적)
+install_package_safe fbterm false             # 프레임버퍼 터미널
+install_package_safe ncurses-term false       # ncurses 터미널
+
+log_success "Debian 공식 한국어 지원 패키지 설치 완료!"
+log_info "설치 후 GUI 터미널과 콘솔 둘 다에서 한글이 지원됩니다."
+
+log_info "설치에 필요한 패키지들 설치 중..."
+# 설치에 필요한 패키지들 (필수)
+install_packages_safe true parted rsync grub-efi-amd64 grub2-common
 
 echo "로케일 설정 중..."
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
@@ -138,17 +303,372 @@ echo "ko_KR.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
 
-# 콘솔 폰트 설정 추가
-echo "강화된 콘솔 한글 지원 설정 중..."
-apt install -y console-data
-echo 'CHARMAP="UTF-8"' >> /etc/default/console-setup
-echo 'CODESET="Uni2"' >> /etc/default/console-setup
-echo 'FONTFACE="Terminus"' >> /etc/default/console-setup
-echo 'FONTSIZE="16"' >> /etc/default/console-setup
+# 콘솔 폰트 설정 추가 - 한글 지원 대폭 강화
+log_info "콘솔 한글 지원 대폭 강화 설정 중..."
 
-# 환경 변수 설정
-echo 'export LANG=en_US.UTF-8' >> /etc/environment
-echo 'export LC_ALL=en_US.UTF-8' >> /etc/environment
+# 콘솔 관련 패키지 설치
+install_package_safe kbd false
+install_package_safe console-data false
+install_package_safe console-setup true
+install_package_safe locales true
+
+# 다양한 콘솔 폰트 대비
+log_info "콘솔 폰트 설정 최적화..."
+
+# 1. 기본 콘솔 설정 (가장 호환성 좋음)
+cat > /etc/default/console-setup << 'CONSOLE_EOF'
+CHARMAP="UTF-8"
+CODESET="guess"
+FONTFACE="Fixed"
+FONTSIZE="16"
+KEYMAP="us"
+VIDEOMODE=""
+CONSOLE_EOF
+
+# 2. 대체 폰트 설정 (유니코드 지원)
+cat > /etc/default/console-setup.unicode << 'CONSOLE_UNI_EOF'
+CHARMAP="UTF-8"
+CODESET="Uni2"
+FONTFACE="unifont"
+FONTSIZE="16"
+KEYMAP="us"
+VIDEOMODE=""
+CONSOLE_UNI_EOF
+
+# 3. 터미널 환경 변수 설정 (다중 대비)
+cat > /etc/environment << 'ENV_EOF'
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
+LC_CTYPE=en_US.UTF-8
+TERM=linux
+CONSOLE_FONT=unifont
+CONSOLE_FONT_MAP=8859-1_to_uni
+ENV_EOF
+
+# 4. 콘솔 초기화 스크립트 생성
+cat > /usr/local/bin/setup-console-korean << 'CONSOLE_INIT_EOF'
+#!/bin/bash
+# 콘솔 한글 지원 초기화 스크립트
+
+# UTF-8 환경 설정
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LC_CTYPE=en_US.UTF-8
+
+# 콘솔 폰트 설정 시도 (여러 단계)
+setup_console_font() {
+    # 1단계: unifont 시도
+    if which setfont > /dev/null 2>&1; then
+        setfont /usr/share/consolefonts/Uni2-VGA16.psf.gz 2>/dev/null && return 0
+        setfont /usr/share/consolefonts/Uni2-Fixed16.psf.gz 2>/dev/null && return 0
+        setfont /usr/share/consolefonts/unifont.psf.gz 2>/dev/null && return 0
+    fi
+    
+    # 2단계: console-setup 사용
+    if which setupcon > /dev/null 2>&1; then
+        setupcon --force --save 2>/dev/null && return 0
+        setupcon --force --save-only 2>/dev/null && return 0  
+    fi
+    
+    # 3단계: dpkg-reconfigure
+    if which dpkg-reconfigure > /dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive dpkg-reconfigure console-setup 2>/dev/null
+    fi
+}
+
+# 콘솔 설정 실행
+setup_console_font
+
+# 키보드 맵 설정
+if which loadkeys > /dev/null 2>&1; then
+    loadkeys us 2>/dev/null || true
+fi
+
+echo "Console Korean support initialized"
+CONSOLE_INIT_EOF
+
+chmod +x /usr/local/bin/setup-console-korean
+
+# 5. 부팅 시 자동 실행 설정
+cat > /etc/systemd/system/console-korean.service << 'SERVICE_EOF'
+[Unit]
+Description=Setup Korean Console Support
+DefaultDependencies=false
+After=systemd-vconsole-setup.service
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-console-korean
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+# 서비스 활성화
+systemctl enable console-korean.service 2>/dev/null || true
+
+# 6. 프로파일 설정 강화
+cat >> /etc/profile << 'PROFILE_EOF'
+
+# Korean console support
+if [ "$TERM" = "linux" ]; then
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    export LC_CTYPE=en_US.UTF-8
+    
+    # 콘솔 폰트 설정 시도
+    if [ -x /usr/local/bin/setup-console-korean ]; then
+        /usr/local/bin/setup-console-korean >/dev/null 2>&1 || true
+    fi
+fi
+PROFILE_EOF
+
+# 7. fbterm 고도화 설정 (선택적)
+if which fbterm > /dev/null 2>&1; then
+    log_success "fbterm 발견, 한글 지원 강화 설정 중..."
+    
+    # fbterm 설정 파일
+    mkdir -p /etc/fbterm
+    cat > /etc/fbterm/fbtermrc << 'FBTERM_CONFIG_EOF'
+# fbterm configuration for Korean support
+font-names=UnDotum,NanumGothic,DejaVu Sans Mono
+font-size=16
+color-foreground=7
+color-background=0
+input-method=fcitx
+FBTERM_CONFIG_EOF
+    
+    # fbterm 자동 실행 스크립트 (개선된 버전)
+    cat > /usr/local/bin/start-fbterm << 'FBTERM_EOF'
+#!/bin/bash
+# Enhanced fbterm startup script
+
+# fbterm이 이미 실행 중인지 확인
+if [ -n "$FBTERM_STARTED" ] || [ "$TERM" != "linux" ]; then
+    exit 0
+fi
+
+# 한글 환경 설정
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export FBTERM_STARTED=1
+
+# fbterm 실행 가능 여부 확인
+if ! which fbterm > /dev/null 2>&1; then
+    exit 0
+fi
+
+# 폰트 경로 설정
+if [ -d /usr/share/fonts/truetype/nanum ]; then
+    export FONTPATH="/usr/share/fonts/truetype/nanum:/usr/share/fonts/truetype/dejavu"
+fi
+
+# fbterm 실행
+exec fbterm
+FBTERM_EOF
+    
+    chmod +x /usr/local/bin/start-fbterm
+    
+    # bash 자동 실행 설정 (선택적)
+    cat >> /etc/profile << 'FBTERM_PROFILE_EOF'
+
+# Auto-start fbterm for better Korean display (optional)
+if [ "$TERM" = "linux" ] && [ -z "$SSH_CONNECTION" ] && [ -z "$FBTERM_STARTED" ]; then
+    if [ -x /usr/local/bin/start-fbterm ]; then
+        /usr/local/bin/start-fbterm 2>/dev/null || true
+    fi
+fi
+FBTERM_PROFILE_EOF
+    
+    log_success "fbterm 한글 지원 설정 완료"
+else
+    log_warning "fbterm이 설치되지 않음, 기본 콘솔 한글 지원만 사용"
+fi
+
+# 8. 최종 콘솔 설정 적용
+log_info "콘솔 설정 적용 중..."
+if which setupcon > /dev/null 2>&1; then
+    setupcon --save --force 2>/dev/null || log_warning "setupcon 실행 실패"
+fi
+
+if which dpkg-reconfigure > /dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure console-setup 2>/dev/null || log_warning "console-setup reconfigure 실패"
+fi
+
+log_success "콘솔 한글 지원 설정 완료!"
+
+# ===========================================
+# 데스크톱 환경 한글 지원 완전 설정
+# ===========================================
+
+log_info "데스크톱 환경 한글 지원 완전 설정 중..."
+
+# 1. 강화된 환경 변수 설정
+cat >> /etc/environment << 'DESKTOP_ENV_EOF'
+# Korean Desktop Environment Support
+CONSOLE_FONT_MAP=8859-1_to_uni
+CONSOLE_FONT=unifont
+
+# Input Method Settings (fcitx5)
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+QT4_IM_MODULE=fcitx
+CLUTTER_IM_MODULE=fcitx
+
+# Font Settings
+FONTCONFIG_PATH=/etc/fonts
+DESKTOP_ENV_EOF
+
+# 2. fcitx5 기본 설정 (모든 사용자용)
+log_info "fcitx5 입력기 기본 설정 중..."
+mkdir -p /etc/skel/.config/fcitx5
+cat > /etc/skel/.config/fcitx5/config << 'FCITX5_CONFIG_EOF'
+[Hotkey]
+TriggerKeys=
+EnumerateWithTriggerKeys=True
+EnumerateForwardKeys=
+EnumerateBackwardKeys=
+EnumerateSkipFirst=False
+
+[Behavior]
+ActiveByDefault=False
+ShareInputState=No
+PreeditEnabledByDefault=True
+ShowInputMethodInformation=True
+showInputMethodInformationWhenFocusIn=False
+CompactInputMethodInformation=True
+ShowFirstInputMethodInformation=True
+DefaultPageSize=5
+OverrideXkbOption=False
+CustomXkbOption=
+EnabledAddons=
+DisabledAddons=
+PreloadInputMethod=True
+AllowInputMethodForPassword=False
+PreeditInPassword=False
+
+[Addon]
+hangul=True
+FCITX5_CONFIG_EOF
+
+# 3. 한글 입력기 프로파일 설정
+cat > /etc/skel/.config/fcitx5/profile << 'FCITX5_PROFILE_EOF'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=hangul
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=hangul
+Layout=
+
+[GroupOrder]
+0=Default
+FCITX5_PROFILE_EOF
+
+# 4. 글꼴 설정 파일 생성
+log_info "한글 글꼴 기본 설정 생성 중..."
+mkdir -p /etc/fonts/conf.d
+cat > /etc/fonts/local.conf << 'FONTS_CONFIG_EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+    <!-- Korean font configuration -->
+    <alias>
+        <family>serif</family>
+        <prefer>
+            <family>Noto Serif CJK KR</family>
+            <family>NanumSerifWeb</family>
+            <family>DejaVu Serif</family>
+        </prefer>
+    </alias>
+    
+    <alias>
+        <family>sans-serif</family>
+        <prefer>
+            <family>Noto Sans CJK KR</family>
+            <family>NanumGothic</family>
+            <family>DejaVu Sans</family>
+        </prefer>
+    </alias>
+    
+    <alias>
+        <family>monospace</family>
+        <prefer>
+            <family>Noto Sans Mono CJK KR</family>
+            <family>NanumGothicCoding</family>
+            <family>DejaVu Sans Mono</family>
+        </prefer>
+    </alias>
+</fontconfig>
+FONTS_CONFIG_EOF
+
+# 5. 한글 지원 테스트 스크립트 생성
+log_info "한글 지원 테스트 도구 생성 중..."
+cat > /usr/local/bin/test-korean << 'TEST_KOREAN_EOF'
+#!/bin/bash
+# Korean support test script
+
+echo "=== Hemmins OS 한글 지원 테스트 ==="
+echo
+
+echo "1. 로케일 설정:"
+locale | grep -E "(LANG|LC_)"
+echo
+
+echo "2. 설치된 한글 폰트:"
+fc-list :lang=ko family | sort | uniq | head -10
+echo
+
+echo "3. 입력기 설정:"
+echo "GTK_IM_MODULE: $GTK_IM_MODULE"
+echo "QT_IM_MODULE: $QT_IM_MODULE"
+echo "XMODIFIERS: $XMODIFIERS"
+echo
+
+echo "4. 한글 텍스트 표시 테스트:"
+echo "안녕하세요! Hemmins OS입니다."
+echo "Korean text display test: 한국어 표시가 정상적으로 됩니다."
+echo
+
+echo "5. 유니코드 테스트:"
+echo "Unicode Korean: 유니코드 한글 처리 ✓"
+echo
+
+echo "=== 테스트 완료 ==="
+TEST_KOREAN_EOF
+
+chmod +x /usr/local/bin/test-korean
+
+# 6. 사용자 프로파일에 한글 지원 추가
+cat >> /etc/skel/.bashrc << 'BASHRC_KOREAN_EOF'
+
+# Korean support settings
+if [ -n "$DISPLAY" ]; then
+    export GTK_IM_MODULE=fcitx
+    export QT_IM_MODULE=fcitx
+    export XMODIFIERS=@im=fcitx
+    # Start fcitx5 if not running
+    if ! pgrep fcitx5 > /dev/null; then
+        fcitx5 -d 2>/dev/null || true
+    fi
+fi
+
+# Test Korean support (optional)
+alias test-korean='/usr/local/bin/test-korean'
+BASHRC_KOREAN_EOF
+
+log_success "데스크톱 환경 한글 지원 설정 완료!"
+log_info "설치 후 'test-korean' 명령으로 한글 지원을 확인할 수 있습니다."
 
 echo "기본 사용자 계정 설정 중..."
 # root 사용자 비밀번호 설정

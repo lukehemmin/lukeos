@@ -296,8 +296,26 @@ check_network() {
         return 0
     else
         log_warning "$(get_text network_warning)"
-        read -p "" confirm
-        [[ "$confirm" == "y" ]]
+        # 네트워크 없어도 설치 진행 (안전한 입력)
+        trap '' INT TERM
+        local confirm
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
+                if [[ "$confirm" == "y" ]]; then
+                    trap cleanup_on_error ERR
+                    return 0  
+                elif [[ "$confirm" == "n" ]]; then
+                    trap cleanup_on_error ERR
+                    return 1
+                fi
+            fi
+            ((attempts++))
+            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
+        done
+        # 기본값: 계속 진행
+        trap cleanup_on_error ERR
+        return 0
     fi
 }
 
@@ -369,11 +387,51 @@ is_usb_disk() {
     return 1
 }
 
-# 언어 선택 함수
+# 강화된 키 입력 함수
+read_key_safe() {
+    local key=""
+    local timeout=${1:-0}  # 타임아웃 설정 (기본값: 무제한)
+    
+    # 타임아웃이 설정된 경우
+    if [[ $timeout -gt 0 ]]; then
+        if ! read -t $timeout -rsn1 key 2>/dev/null; then
+            return 1  # 타임아웃
+        fi
+    else
+        if ! read -rsn1 key 2>/dev/null; then
+            return 1  # 읽기 실패
+        fi
+    fi
+    
+    # ESC 시퀀스 처리
+    if [[ "$key" == $'\x1b' ]]; then
+        local seq=""
+        # 짧은 타임아웃으로 나머지 시퀀스 읽기
+        if read -t 0.1 -rsn1 seq 2>/dev/null; then
+            if [[ "$seq" == "[" ]]; then
+                if read -t 0.1 -rsn1 seq 2>/dev/null; then
+                    key="$key[$seq"
+                else
+                    key="$key["
+                fi
+            else
+                key="$key$seq"
+            fi
+        fi
+    fi
+    
+    echo "$key"
+    return 0
+}
+
+# 언어 선택 함수 (개선됨)
 select_language() {
     local languages=("English" "Korean (한국어)")
     local selected=0
     local key=""
+    
+    # 시그널 처리 강화
+    trap 'return 1' INT TERM
     
     while true; do
         clear
@@ -397,25 +455,46 @@ select_language() {
         echo
         echo -e "${YELLOW}Arrow keys to select, Enter to confirm${NC}"
         echo -e "${YELLOW}화살표 키로 선택, Enter로 확인${NC}"
+        echo -e "${YELLOW}(Press Ctrl+C to exit)${NC}"
         
-        read -rsn1 key
-        case "$key" in
-            $'\x1b')
-                read -rsn2 key
-                case "$key" in
-                    '[A') ((selected > 0)) && ((selected--)) ;;
-                    '[B') ((selected < ${#languages[@]} - 1)) && ((selected++)) ;;
-                esac
-                ;;
-            '') 
-                case $selected in
-                    0) LANG_CODE="en" ;;
-                    1) LANG_CODE="ko" ;;
-                esac
-                return 0
-                ;;
-        esac
+        # 강화된 키 입력 처리
+        if key=$(read_key_safe); then
+            case "$key" in
+                $'\x1b[A'|$'\x1bOA') # 위쪽 화살표
+                    ((selected > 0)) && ((selected--))
+                    ;;
+                $'\x1b[B'|$'\x1bOB') # 아래쪽 화살표
+                    ((selected < ${#languages[@]} - 1)) && ((selected++))
+                    ;;
+                ''|$'\n'|$'\r') # Enter
+                    case $selected in
+                        0) LANG_CODE="en" ;;
+                        1) LANG_CODE="ko" ;;
+                    esac
+                    trap - INT TERM
+                    return 0
+                    ;;
+                $'\x03') # Ctrl+C
+                    trap - INT TERM
+                    return 1
+                    ;;
+                $'\x04') # Ctrl+D
+                    trap - INT TERM
+                    return 1
+                    ;;
+                'q'|'Q') # 종료
+                    trap - INT TERM
+                    return 1
+                    ;;
+                # 다른 키는 무시
+            esac
+        else
+            # 키 읽기 실패 시 계속 진행
+            continue
+        fi
     done
+    
+    trap - INT TERM
 }
 
 # 로그 및 UI 함수들
@@ -424,13 +503,16 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# 메뉴 선택 함수
+# 메뉴 선택 함수 (개선됨)
 show_menu() {
     local title="$1"
     shift
     local options=("$@")
     local selected=0
     local key=""
+    
+    # 시그널 처리 강화
+    trap 'return 255' INT TERM
     
     while true; do
         clear
@@ -458,58 +540,129 @@ show_menu() {
         
         echo
         echo -e "${YELLOW}$(get_text arrow_keys)${NC}"
+        echo -e "${YELLOW}(Press Ctrl+C to cancel)${NC}"
         
-        read -rsn1 key
-        case "$key" in
-            $'\x1b')
-                read -rsn2 key
-                case "$key" in
-                    '[A') ((selected > 0)) && ((selected--)) ;;
-                    '[B') ((selected < ${#options[@]} - 1)) && ((selected++)) ;;
-                esac
-                ;;
-            '') return $selected ;;
-        esac
+        # 강화된 키 입력 처리
+        if key=$(read_key_safe); then
+            case "$key" in
+                $'\x1b[A'|$'\x1bOA') # 위쪽 화살표
+                    ((selected > 0)) && ((selected--))
+                    ;;
+                $'\x1b[B'|$'\x1bOB') # 아래쪽 화살표
+                    ((selected < ${#options[@]} - 1)) && ((selected++))
+                    ;;
+                ''|$'\n'|$'\r') # Enter
+                    trap - INT TERM
+                    return $selected
+                    ;;
+                $'\x03') # Ctrl+C
+                    trap - INT TERM
+                    return 255  # 취소를 나타내는 특별한 값
+                    ;;
+                $'\x04') # Ctrl+D
+                    trap - INT TERM
+                    return 255
+                    ;;
+                'q'|'Q') # 종료
+                    trap - INT TERM
+                    return 255
+                    ;;
+                # 숫자 키로 직접 선택
+                [1-9])
+                    local num=$((${key} - 1))
+                    if [[ $num -ge 0 ]] && [[ $num -lt ${#options[@]} ]]; then
+                        selected=$num
+                        trap - INT TERM
+                        return $selected
+                    fi
+                    ;;
+                # 다른 키는 무시
+            esac
+        else
+            # 키 읽기 실패 시 계속 진행
+            continue
+        fi
     done
+    
+    trap - INT TERM
 }
 
-# 텍스트 입력 함수 (개선됨)
-get_input() {
+# 안전한 입력 함수 (시그널 완전 차단)
+get_input_safe() {
     local prompt="$1"
     local default="$2"
     local is_password="$3"
     local input=""
+    local max_attempts=5
+    local attempt=0
+    
+    # 시그널 완전 차단
+    trap '' INT TERM QUIT HUP
     
     echo -e "${WHITE}${BOLD}$prompt${NC}"
     if [[ -n "$default" ]]; then
         echo -e "${YELLOW}($(get_text default): $default)${NC}"
     fi
+    echo -e "${YELLOW}(입력 중에는 Ctrl+C로 취소할 수 없습니다)${NC}"
     echo -n "> "
     
-    if [[ "$is_password" == "true" ]]; then
-        read -s input
-        echo
-        
-        # 비밀번호 강도 확인
-        if [[ -n "$input" ]]; then
-            local strength=$(check_password_strength "$input")
-            check_password_strength "$input" >/dev/null
-            local strength_level=$?
-            
-            echo -e "${CYAN}$(get_formatted_text password_strength "$strength")${NC}"
-            
-            # 너무 약한 비밀번호 경고
-            if [[ $strength_level -lt 2 ]] && [[ ${#input} -lt 6 ]]; then
-                echo -e "${RED}$(get_text password_too_weak)${NC}"
-                read -p "" confirm
-                [[ "$confirm" != "y" ]] && return 1
+    while [[ $attempt -lt $max_attempts ]]; do
+        if [[ "$is_password" == "true" ]]; then
+            # 비밀번호 입력 (시그널 무시)
+            if input=$(bash -c 'trap "" INT TERM; read -s input && echo "$input"'); then
+                echo
+                break
+            else
+                ((attempt++))
+                if [[ $attempt -lt $max_attempts ]]; then
+                    echo
+                    echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
+                    echo -n "> "
+                fi
+            fi
+        else
+            # 일반 입력 (시그널 무시)
+            if input=$(bash -c 'trap "" INT TERM; read input && echo "$input"'); then
+                break
+            else
+                ((attempt++))
+                if [[ $attempt -lt $max_attempts ]]; then
+                    echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
+                    echo -n "> "
+                fi
             fi
         fi
-    else
-        read input
+    done
+    
+    # 최대 시도 횟수 초과시 기본값 사용
+    if [[ $attempt -eq $max_attempts ]]; then
+        log_warning "최대 시도 횟수 초과, 기본값 사용: $default"
+        input="$default"
     fi
     
+    # 비밀번호 강도 확인 (비밀번호인 경우)
+    if [[ "$is_password" == "true" ]] && [[ -n "$input" ]]; then
+        local strength=$(check_password_strength "$input")
+        check_password_strength "$input" >/dev/null
+        local strength_level=$?
+        
+        echo -e "${CYAN}$(get_formatted_text password_strength "$strength")${NC}"
+        
+        # 너무 약한 비밀번호 경고 (강제 진행)
+        if [[ $strength_level -lt 2 ]] && [[ ${#input} -lt 6 ]]; then
+            log_warning "약한 비밀번호이지만 계속 진행합니다."
+        fi
+    fi
+    
+    # 시그널 처리 복원 (설치 중이 아닌 경우에만)
+    trap cleanup_on_error ERR
+    
     echo "${input:-$default}"
+}
+
+# 기존 함수를 안전한 버전으로 교체
+get_input() {
+    get_input_safe "$@"
 }
 
 # 디스크 선택 함수 (개선됨)
@@ -567,11 +720,31 @@ select_disk() {
         return 1
     fi
     
-    # USB 디스크 경고
+    # USB 디스크 경고 (안전한 입력)
     if is_usb_disk "$SELECTED_DISK"; then
         echo -e "${YELLOW}$(get_text usb_warning)${NC}"
-        read -p "" confirm
-        [[ "$confirm" != "y" ]] && return 1
+        trap '' INT TERM
+        local confirm
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
+                if [[ "$confirm" == "y" ]]; then
+                    trap cleanup_on_error ERR
+                    break
+                elif [[ "$confirm" == "n" ]]; then
+                    trap cleanup_on_error ERR
+                    return 1
+                fi
+            fi
+            ((attempts++))
+            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
+        done
+        if [[ $attempts -eq 3 ]]; then
+            log_warning "최대 시도 횟수 초과, 취소합니다."
+            trap cleanup_on_error ERR
+            return 1
+        fi
+        trap cleanup_on_error ERR
     fi
     
     return 0
@@ -634,8 +807,30 @@ configure_partitions() {
         echo "  Root: $((disk_mb - EFI_SIZE - SWAP_SIZE))MB"
         echo
         
-        read -p "$(get_text continue_question) " confirm
-        [[ "$confirm" != "y" ]] && return 1
+        # 파티션 설정 확인 (안전한 입력)
+        trap '' INT TERM
+        local confirm
+        local attempts=0
+        while [[ $attempts -lt 3 ]]; do
+            echo -n "$(get_text continue_question) "
+            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
+                if [[ "$confirm" == "y" ]]; then
+                    trap cleanup_on_error ERR
+                    break
+                elif [[ "$confirm" == "n" ]]; then
+                    trap cleanup_on_error ERR
+                    return 1
+                fi
+            fi
+            ((attempts++))
+            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
+        done
+        if [[ $attempts -eq 3 ]]; then
+            log_warning "최대 시도 횟수 초과, 취소합니다."
+            trap cleanup_on_error ERR
+            return 1
+        fi
+        trap cleanup_on_error ERR
     fi
     return 0
 }
@@ -734,8 +929,39 @@ show_summary() {
     echo -e "${RED}${BOLD}$(get_formatted_text warning_text "$SELECTED_DISK")${NC}"
     echo
     
-    read -p "$(get_text start_confirm) " confirm
-    [[ "$confirm" == "yes" ]]
+    # 안전한 확인 입력 (시그널 차단)
+    trap '' INT TERM
+    echo -e "${YELLOW}설치를 시작하려면 'yes'를 입력하세요. (중단 불가)${NC}"
+    
+    local confirm
+    local max_attempts=3
+    local attempt=0
+    
+    while [[ $attempt -lt $max_attempts ]]; do
+        echo -n "$(get_text start_confirm) "
+        if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
+            if [[ "$confirm" == "yes" ]]; then
+                trap cleanup_on_error ERR
+                return 0
+            elif [[ "$confirm" == "no" ]] || [[ "$confirm" == "n" ]]; then
+                trap cleanup_on_error ERR  
+                return 1
+            else
+                echo -e "${YELLOW}'yes' 또는 'no'를 입력하세요.${NC}"
+                ((attempt++))
+            fi
+        else
+            ((attempt++))
+            if [[ $attempt -lt $max_attempts ]]; then
+                echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
+            fi
+        fi
+    done
+    
+    # 최대 시도 횟수 초과 시 취소
+    log_warning "최대 시도 횟수 초과, 설치를 취소합니다."
+    trap cleanup_on_error ERR
+    return 1
 }
 
 # 향상된 진행률 표시 함수
@@ -817,11 +1043,30 @@ install_legacy_grub() {
     return 1
 }
 
+# 설치 중 시그널 방지 함수
+block_signals() {
+    trap '' INT TERM QUIT HUP
+}
+
+# 시그널 블록 해제 함수
+unblock_signals() {
+    trap cleanup_on_error ERR
+    trap 'log_warning "Installation cannot be interrupted during critical operations"; sleep 2' INT TERM
+}
+
 # 실제 설치 수행 (대폭 개선됨)
 perform_installation() {
     clear
     echo -e "${CYAN}${BOLD}$(get_text installing)${NC}"
     echo
+    
+    # 설치 중에는 시그널 차단
+    log_warning "WARNING: Do not interrupt the installation process!"
+    log_warning "Interrupting during installation can damage your system."
+    echo
+    sleep 3
+    
+    block_signals
     
     local steps=(
         "$(get_text step_disk_prep)"
@@ -840,6 +1085,8 @@ perform_installation() {
     local failed_step=""
     
     for i in "${!steps[@]}"; do
+        # 각 단계마다 시그널 차단 유지
+        block_signals
         show_progress $((i+1)) $total_steps "${steps[i]}"
         
         case $i in
@@ -1097,18 +1344,24 @@ EOF
     
     # 설치 실패 처리
     if [[ -n "$failed_step" ]]; then
+        unblock_signals
         echo
         log_error "Installation failed at: $failed_step"
         log_error "$(get_text error_install)"
         return 1
     fi
     
+    # 설치 완료 - 시그널 블록 해제
+    unblock_signals
     echo
     echo
 }
 
-# 설치 완료 화면
+# 설치 완료 화면 (시그널 보호)
 show_completion() {
+    # 완료 화면에서는 시그널 허용
+    trap 'log_info "Installation completed successfully"; exit 0' INT TERM
+    
     clear
     echo -e "${GREEN}${BOLD}"
     echo "╔══════════════════════════════════════════════════════════════╗"
@@ -1134,7 +1387,9 @@ show_completion() {
     echo "$(get_text boot_from_disk)"
     echo
     
+    # 시그널 차단하여 안전한 메뉴 선택
     local options=("$(get_text reboot_now)" "$(get_text reboot_later)")
+    trap '' INT TERM  # 재부팅 선택 중에는 차단
     show_menu "$(get_text reboot_options)" "${options[@]}"
     local choice=$?
     
@@ -1144,6 +1399,9 @@ show_completion() {
         sleep 3
         reboot
     fi
+    
+    # 완료 후 시그널 허용
+    trap - INT TERM
 }
 
 # 에러 처리 (개선됨)
@@ -1173,7 +1431,18 @@ cleanup_on_error() {
         swapoff "$SWAP_PARTITION" >/dev/null 2>&1 || true
     fi
     
-    read -p "$(get_text press_key)"
+    # 에러 발생 시 안전한 키 대기 (시그널 차단)
+    echo -e "${YELLOW}에러가 발생했습니다. 아무 키나 누르면 종료됩니다.${NC}"
+    
+    # 안전한 키 대기 (최대 30초)
+    local key_attempts=0
+    while [[ $key_attempts -lt 30 ]]; do
+        if bash -c 'trap "" INT TERM; read -n1 -s -t 1' 2>/dev/null; then
+            break
+        fi
+        ((key_attempts++))
+    done
+    
     exit 1
 }
 
@@ -1196,7 +1465,21 @@ show_disk_info() {
     echo "=================="
     ip addr show | grep -E '^[0-9]+:|inet ' | sed 's/^/  /'
     echo
-    read -p "$(get_text press_key)"
+    # 안전한 키 대기 (시그널 차단)
+    trap '' INT TERM
+    echo -e "${YELLOW}다시 메뉴로 돌아가려면 아무 키나 누르세요 (중단 불가)${NC}"
+    
+    # 안전한 키 대기
+    local key_attempts=0
+    while [[ $key_attempts -lt 20 ]]; do
+        if bash -c 'trap "" INT TERM; read -n1 -s -t 1' 2>/dev/null; then
+            break
+        fi
+        ((key_attempts++))
+    done
+    
+    # 시그널 처리 복원
+    trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
 }
 
 # 메인 설치 프로세스
@@ -1209,8 +1492,14 @@ main() {
         exit 1
     fi
     
+    # 초기 시그널 처리 설정 (사용자 입력 단계에서만 허용)
+    trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
+    
     # 언어 선택
-    select_language
+    if ! select_language; then
+        log_info "Language selection cancelled"
+        exit 0
+    fi
     
     # 네트워크 연결 확인
     check_network || log_warning "Continuing without network connection"
@@ -1230,7 +1519,11 @@ main() {
         
         case $choice in
             0) # 설치 시작
-                # 설치 단계들을 순차적으로 실행
+                # 설치 중에는 모든 시그널 차단
+                trap '' INT TERM QUIT HUP
+                log_info "Starting installation process..."
+                log_warning "설치 진행 중에는 중단할 수 없습니다!"
+                
                 if select_disk; then
                     if select_install_type; then
                         if configure_partitions; then
@@ -1241,8 +1534,11 @@ main() {
                                             show_completion
                                             break
                                         else
-                                            # 설치 실패 시 메뉴로 돌아감
-                                            read -p "$(get_text press_key)"
+                                            # 설치 실패 시 시그널 허용하고 메뉴로 돌아감
+                                            trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
+                                            echo -e "${RED}설치에 실패했습니다.${NC}"
+                                            echo -e "${YELLOW}아무 키나 누르면 메인 메뉴로 돌아갑니다.${NC}"
+                                            read -n1 -s
                                         fi
                                     fi
                                 fi
@@ -1250,7 +1546,8 @@ main() {
                         fi
                     fi
                 fi
-                # 어느 단계에서든 실패하면 메인 메뉴로 돌아감
+                # 어느 단계에서든 실패하면 시그널 허용하고 메인 메뉴로 돌아감
+                trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
                 ;;
             1) # 디스크 정보 보기
                 show_disk_info
@@ -1260,19 +1557,23 @@ main() {
                 ;;
             3) # 종료
                 clear
+                echo -e "${YELLOW}$(get_text exit)...${NC}"
                 if [[ "$LANG_CODE" == "ko" ]]; then
                     echo "설치를 취소했습니다."
+                    echo "안전하게 종료합니다."
                 else
                     echo "Installation cancelled."
+                    echo "Exiting safely."
                 fi
+                sleep 1
                 exit 0
                 ;;
         esac
     done
 }
 
-# 시그널 처리
-trap 'echo; log_info "Installation interrupted by user"; exit 1' INT TERM
+# 전역 시그널 처리 (기본적으로 비활성화, main에서 설정)
+# trap 'echo; log_info "Installation interrupted by user"; exit 1' INT TERM
 
 # 프로그램 시작
 main "$@"
