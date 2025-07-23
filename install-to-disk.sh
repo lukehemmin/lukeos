@@ -371,7 +371,7 @@ is_usb_disk() {
 
 # 언어 선택 함수
 select_language() {
-    local languages=("English" "한국어 (Korean)")
+    local languages=("English" "Korean (한국어)")
     local selected=0
     local key=""
     

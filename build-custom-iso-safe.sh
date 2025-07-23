@@ -120,6 +120,14 @@ apt install -y systemd-sysv network-manager openssh-server
 apt install -y sudo curl wget htop nano vim net-tools
 apt install -y locales console-setup keyboard-configuration
 
+# 한글 폰트 및 언어 패키지 추가 (Debian용)
+echo "한글 지원 패키지 설치 중..."
+apt install -y fonts-nanum fonts-nanum-coding fonts-nanum-extra
+apt install -y fonts-unfonts-core fonts-baekmuk
+# language-pack-ko 제거 (Debian에 없음)
+# apt install -y language-pack-ko language-pack-ko-base
+apt install -y fcitx5 fcitx5-hangul fcitx5-config-qt
+
 echo "설치에 필요한 패키지들 설치 중..."
 # 설치에 필요한 패키지들
 apt install -y parted rsync grub-efi-amd64 grub2-common
@@ -130,6 +138,18 @@ echo "ko_KR.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
 
+# 콘솔 폰트 설정 추가
+echo "강화된 콘솔 한글 지원 설정 중..."
+apt install -y console-data
+echo 'CHARMAP="UTF-8"' >> /etc/default/console-setup
+echo 'CODESET="Uni2"' >> /etc/default/console-setup
+echo 'FONTFACE="Terminus"' >> /etc/default/console-setup
+echo 'FONTSIZE="16"' >> /etc/default/console-setup
+
+# 환경 변수 설정
+echo 'export LANG=en_US.UTF-8' >> /etc/environment
+echo 'export LC_ALL=en_US.UTF-8' >> /etc/environment
+
 echo "기본 사용자 계정 설정 중..."
 # root 사용자 비밀번호 설정
 echo "root:root123" | chpasswd
@@ -138,6 +158,10 @@ echo "root:root123" | chpasswd
 useradd -m -s /bin/bash installer
 echo "installer:installer" | chpasswd
 usermod -aG sudo installer
+
+# installer 사용자에게 passwordless sudo 권한 부여
+echo "installer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/installer
+chmod 440 /etc/sudoers.d/installer
 
 echo "서비스 설정 중..."
 systemctl enable ssh
