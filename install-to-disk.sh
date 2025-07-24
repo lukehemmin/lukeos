@@ -16,7 +16,7 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# 기본 언어 설정
+# Installation language: English only (Korean support available after installation)
 LANG_CODE="en"
 
 # 전역 변수
@@ -31,251 +31,128 @@ SWAP_SIZE="2048"
 DISK_SIZE_GB=0
 TOTAL_REQUIRED_SIZE=0
 
-# 언어별 텍스트 정의
-declare -A TEXTS
+# Static English text definitions (simplified)
+INSTALLER_TITLE="Hemmins OS Installer"
+WELCOME_MSG="Welcome to Hemmins OS Installation\n\nKorean language support will be available after installation."
+START_INSTALL="Start Installation"
+VIEW_DISK="View Disk Information"
+EXIT_INSTALLER="Exit Installer"
 
-# 영어 텍스트
-TEXTS[en_title]="Hemmins OS Installer"
-TEXTS[en_welcome]="Welcome to Hemmins OS Installation"
-TEXTS[en_start_install]="Start Installation"
-TEXTS[en_view_disk]="View Disk Information"
-TEXTS[en_language]="Language / 언어"
-TEXTS[en_exit]="Exit"
-TEXTS[en_cancel]="Cancel"
-TEXTS[en_continue]="Continue"
-TEXTS[en_yes]="Yes"
-TEXTS[en_no]="No"
-TEXTS[en_back]="Back"
-TEXTS[en_next]="Next"
-TEXTS[en_arrow_keys]="Arrow keys to select, Enter to confirm"
+# Disk and installation text
+SELECT_DISK="Select disk to install"
+INSTALL_TYPE="Select installation type"
+FULL_DISK="Use entire disk (erase existing data)"
+MANUAL_PARTITION="Manual partition setup"
+PARTITION_CONFIG="Partition Configuration"
+USER_CONFIG="User Account Configuration"
+SYSTEM_CONFIG="System Configuration"
+INSTALL_SUMMARY="Installation Summary"
 
-# 디스크 관련
-TEXTS[en_select_disk]="Select disk to install:"
-TEXTS[en_install_type]="Select installation type:"
-TEXTS[en_full_disk]="Use entire disk (erase existing data)"
-TEXTS[en_manual_partition]="Manual partition setup"
-TEXTS[en_partition_config]="Partition Configuration"
-TEXTS[en_efi_size]="EFI partition size (MB):"
-TEXTS[en_swap_size]="Swap partition size (MB, 0=disable):"
-TEXTS[en_configured_partitions]="Configured partitions:"
-TEXTS[en_remaining_space]="remaining space"
-TEXTS[en_continue_question]="Continue? (y/n):"
-TEXTS[en_disk_too_small]="Disk is too small! Minimum 8GB required, found %dGB."
-TEXTS[en_usb_warning]="Warning: This appears to be a USB drive. Are you sure? (y/n):"
-TEXTS[en_partition_too_large]="Total partition size (%dMB) exceeds disk capacity (%dMB)!"
 
-# 네트워크 관련
-TEXTS[en_network_check]="Checking network connectivity..."
-TEXTS[en_network_ok]="Network connection available"
-TEXTS[en_network_warning]="No network connection detected. Continue anyway? (y/n):"
 
-# 비밀번호 관련
-TEXTS[en_password_strength]="Password strength: %s"
-TEXTS[en_password_weak]="Weak"
-TEXTS[en_password_medium]="Medium"
-TEXTS[en_password_strong]="Strong"
-TEXTS[en_password_too_weak]="Password is too weak! Use at least 6 characters. Continue? (y/n):"
 
-# 사용자 관련
-TEXTS[en_user_config]="User Account Configuration"
-TEXTS[en_admin_username]="Administrator username:"
-TEXTS[en_admin_password]="Administrator password:"
-TEXTS[en_confirm_password]="Confirm password:"
-TEXTS[en_root_password]="Root password:"
-TEXTS[en_password_mismatch]="Passwords do not match. Please try again."
-TEXTS[en_default]="default"
-TEXTS[en_invalid_username]="Invalid username! Use only lowercase letters and numbers."
 
-# 시스템 관련
-TEXTS[en_system_config]="System Configuration"
-TEXTS[en_hostname]="Hostname:"
-TEXTS[en_invalid_hostname]="Invalid hostname! Use only letters, numbers, and hyphens."
 
-# 설치 관련
-TEXTS[en_install_summary]="Installation Summary"
-TEXTS[en_disk]="Disk"
-TEXTS[en_install_type_label]="Installation type"
-TEXTS[en_full_disk_label]="Full disk"
-TEXTS[en_manual_label]="Manual setup"
-TEXTS[en_efi_partition]="EFI partition"
-TEXTS[en_swap_partition]="Swap partition"
-TEXTS[en_hostname_label]="Hostname"
-TEXTS[en_administrator]="Administrator"
-TEXTS[en_warning_text]="WARNING: All data on /dev/%s will be erased!"
-TEXTS[en_start_confirm]="Start installation? (yes/no):"
-TEXTS[en_installing]="Installing Hemmins OS..."
-TEXTS[en_install_complete]="Installation Complete!"
-TEXTS[en_install_success]="System has been successfully installed."
-TEXTS[en_install_info]="Installed System Information:"
-TEXTS[en_next_steps]="Next Steps:"
-TEXTS[en_remove_media]="1. Remove USB/CD media"
-TEXTS[en_reboot_system]="2. Reboot the system"
-TEXTS[en_boot_from_disk]="3. Hemmins OS will boot from hard disk"
-TEXTS[en_reboot_options]="Reboot Options:"
-TEXTS[en_reboot_now]="Reboot now"
-TEXTS[en_reboot_later]="Reboot manually later"
-TEXTS[en_rebooting]="Rebooting in 3 seconds..."
 
-# 설치 단계
-TEXTS[en_step_disk_prep]="Preparing disk"
-TEXTS[en_step_partition]="Creating partitions"
-TEXTS[en_step_filesystem]="Creating filesystems"
-TEXTS[en_step_mount]="Mounting partitions"
-TEXTS[en_step_copy]="Copying system files"
-TEXTS[en_step_config]="Configuring system"
-TEXTS[en_step_users]="Setting up user accounts"
-TEXTS[en_step_bootloader]="Installing bootloader"
-TEXTS[en_step_finalize]="Finalizing configuration"
-TEXTS[en_step_cleanup]="Cleaning up"
 
-# Legacy BIOS 관련
-TEXTS[en_uefi_failed]="UEFI installation failed, trying Legacy BIOS..."
-TEXTS[en_legacy_fallback]="Falling back to Legacy BIOS installation"
 
-# 에러 메시지
-TEXTS[en_error_root]="This installer must be run as root."
-TEXTS[en_error_disk_not_found]="Disk /dev/%s not found."
-TEXTS[en_error_install]="An error occurred during installation!"
-TEXTS[en_error_partition_failed]="Failed to create partitions!"
-TEXTS[en_error_filesystem_failed]="Failed to create filesystems!"
-TEXTS[en_error_mount_failed]="Failed to mount partitions!"
-TEXTS[en_error_copy_failed]="Failed to copy system files!"
-TEXTS[en_error_bootloader_failed]="Failed to install bootloader!"
-TEXTS[en_use_sudo]="Use: sudo %s"
-TEXTS[en_press_key]="Press any key to continue..."
+# Additional text definitions
+CANCEL="Cancel"
+CONTINUE="Continue"
+YES="Yes"
+NO="No"
+BACK="Back"
+NEXT="Next"
 
-# 한국어 텍스트
-TEXTS[ko_title]="Hemmins OS 설치 프로그램"
-TEXTS[ko_welcome]="Hemmins OS 설치에 오신 것을 환영합니다"
-TEXTS[ko_start_install]="설치 시작"
-TEXTS[ko_view_disk]="디스크 정보 보기"
-TEXTS[ko_language]="언어 선택 / Language"
-TEXTS[ko_exit]="종료"
-TEXTS[ko_cancel]="취소"
-TEXTS[ko_continue]="계속"
-TEXTS[ko_yes]="예"
-TEXTS[ko_no]="아니오"
-TEXTS[ko_back]="뒤로"
-TEXTS[ko_next]="다음"
-TEXTS[ko_arrow_keys]="화살표 키로 선택, Enter로 확인"
+# Error messages
+ERROR_ROOT="This installer must be run with root privileges."
+ERROR_DISK_NOT_FOUND="Disk /dev/%s not found."
+ERROR_INSTALL="Error occurred during installation!"
+USE_SUDO="Please use: sudo %s"
+PRESS_KEY="Press any key to continue..."
 
-# 디스크 관련
-TEXTS[ko_select_disk]="설치할 디스크를 선택하세요:"
-TEXTS[ko_install_type]="설치 유형을 선택하세요:"
-TEXTS[ko_full_disk]="전체 디스크 사용 (기존 데이터 삭제)"
-TEXTS[ko_manual_partition]="수동 파티션 설정"
-TEXTS[ko_partition_config]="파티션 설정"
-TEXTS[ko_efi_size]="EFI 파티션 크기 (MB):"
-TEXTS[ko_swap_size]="스왑 파티션 크기 (MB, 0=사용안함):"
-TEXTS[ko_configured_partitions]="설정된 파티션:"
-TEXTS[ko_remaining_space]="나머지 전체"
-TEXTS[ko_continue_question]="계속하시겠습니까? (y/n):"
-TEXTS[ko_disk_too_small]="디스크가 너무 작습니다! 최소 8GB 필요, %dGB 발견."
-TEXTS[ko_usb_warning]="경고: USB 드라이브로 보입니다. 계속하시겠습니까? (y/n):"
-TEXTS[ko_partition_too_large]="전체 파티션 크기(%dMB)가 디스크 용량(%dMB)을 초과합니다!"
+# Installation step messages
+STEP_DISK_PREP="Preparing disk"
+STEP_PARTITION="Creating partitions"
+STEP_FILESYSTEM="Creating filesystems"
+STEP_MOUNT="Mounting partitions"
+STEP_COPY="Copying system files"
+STEP_CONFIG="Configuring system"
+STEP_USERS="Setting up user accounts"
+STEP_BOOTLOADER="Installing bootloader"
+STEP_FINALIZE="Finalizing configuration"
+STEP_CLEANUP="Cleaning up"
 
-# 네트워크 관련
-TEXTS[ko_network_check]="네트워크 연결 확인 중..."
-TEXTS[ko_network_ok]="네트워크 연결 사용 가능"
-TEXTS[ko_network_warning]="네트워크 연결이 감지되지 않습니다. 계속하시겠습니까? (y/n):"
+# Installation messages
+INSTALLING="Installing Hemmins OS..."
+INSTALL_COMPLETE="Installation Complete!"
+INSTALL_SUCCESS="System has been successfully installed."
+INSTALL_INFO="Installed system information:"
+NEXT_STEPS="Next steps:"
+REMOVE_MEDIA="1. Remove USB/CD media"
+REBOOT_SYSTEM="2. Reboot the system"
+BOOT_FROM_DISK="3. Hemmins OS will boot from hard disk"
+REBOOT_OPTIONS="Reboot options:"
+REBOOT_NOW="Reboot now"
+REBOOT_LATER="Reboot manually later"
+REBOOTING="Rebooting in 3 seconds..."
 
-# 비밀번호 관련
-TEXTS[ko_password_strength]="비밀번호 강도: %s"
-TEXTS[ko_password_weak]="약함"
-TEXTS[ko_password_medium]="보통"
-TEXTS[ko_password_strong]="강함"
-TEXTS[ko_password_too_weak]="비밀번호가 너무 약합니다! 최소 6자 이상 사용하세요. 계속하시겠습니까? (y/n):"
+# Warning messages
+WARNING_TEXT="WARNING: All data on /dev/%s will be erased!"
+UEFI_FAILED="UEFI installation failed, trying Legacy BIOS..."
+LEGACY_FALLBACK="Switching to Legacy BIOS installation"
 
-# 사용자 관련
-TEXTS[ko_user_config]="사용자 계정 설정"
-TEXTS[ko_admin_username]="관리자 사용자명:"
-TEXTS[ko_admin_password]="관리자 비밀번호:"
-TEXTS[ko_confirm_password]="비밀번호 확인:"
-TEXTS[ko_root_password]="root 비밀번호:"
-TEXTS[ko_password_mismatch]="비밀번호가 일치하지 않습니다. 다시 입력하세요."
-TEXTS[ko_default]="기본값"
-TEXTS[ko_invalid_username]="잘못된 사용자명입니다! 소문자와 숫자만 사용하세요."
-
-# 시스템 관련
-TEXTS[ko_system_config]="시스템 설정"
-TEXTS[ko_hostname]="호스트명:"
-TEXTS[ko_invalid_hostname]="잘못된 호스트명입니다! 문자, 숫자, 하이픈만 사용하세요."
-
-# 설치 관련
-TEXTS[ko_install_summary]="설치 요약"
-TEXTS[ko_disk]="디스크"
-TEXTS[ko_install_type_label]="설치 유형"
-TEXTS[ko_full_disk_label]="전체 디스크"
-TEXTS[ko_manual_label]="수동 설정"
-TEXTS[ko_efi_partition]="EFI 파티션"
-TEXTS[ko_swap_partition]="스왑 파티션"
-TEXTS[ko_hostname_label]="호스트명"
-TEXTS[ko_administrator]="관리자"
-TEXTS[ko_warning_text]="경고: /dev/%s의 모든 데이터가 삭제됩니다!"
-TEXTS[ko_start_confirm]="설치를 시작하시겠습니까? (yes/no):"
-TEXTS[ko_installing]="Hemmins OS 설치 중..."
-TEXTS[ko_install_complete]="설치 완료!"
-TEXTS[ko_install_success]="시스템이 성공적으로 설치되었습니다."
-TEXTS[ko_install_info]="설치된 시스템 정보:"
-TEXTS[ko_next_steps]="다음 단계:"
-TEXTS[ko_remove_media]="1. USB/CD를 제거하세요"
-TEXTS[ko_reboot_system]="2. 시스템을 재부팅하세요"
-TEXTS[ko_boot_from_disk]="3. 하드디스크에서 Hemmins OS가 부팅됩니다"
-TEXTS[ko_reboot_options]="재부팅 옵션:"
-TEXTS[ko_reboot_now]="지금 재부팅"
-TEXTS[ko_reboot_later]="나중에 수동으로 재부팅"
-TEXTS[ko_rebooting]="3초 후 재부팅합니다..."
-
-# 설치 단계
-TEXTS[ko_step_disk_prep]="디스크 준비"
-TEXTS[ko_step_partition]="파티션 생성"
-TEXTS[ko_step_filesystem]="파일시스템 생성"
-TEXTS[ko_step_mount]="파티션 마운트"
-TEXTS[ko_step_copy]="시스템 파일 복사"
-TEXTS[ko_step_config]="시스템 설정"
-TEXTS[ko_step_users]="사용자 계정 설정"
-TEXTS[ko_step_bootloader]="부트로더 설치"
-TEXTS[ko_step_finalize]="설정 마무리"
-TEXTS[ko_step_cleanup]="정리"
-
-# Legacy BIOS 관련
-TEXTS[ko_uefi_failed]="UEFI 설치 실패, Legacy BIOS 시도 중..."
-TEXTS[ko_legacy_fallback]="Legacy BIOS 설치로 전환"
-
-# 에러 메시지
-TEXTS[ko_error_root]="이 설치 프로그램은 root 권한으로 실행해야 합니다."
-TEXTS[ko_error_disk_not_found]="디스크 /dev/%s를 찾을 수 없습니다."
-TEXTS[ko_error_install]="설치 중 에러가 발생했습니다!"
-TEXTS[ko_error_partition_failed]="파티션 생성에 실패했습니다!"
-TEXTS[ko_error_filesystem_failed]="파일시스템 생성에 실패했습니다!"
-TEXTS[ko_error_mount_failed]="파티션 마운트에 실패했습니다!"
-TEXTS[ko_error_copy_failed]="시스템 파일 복사에 실패했습니다!"
-TEXTS[ko_error_bootloader_failed]="부트로더 설치에 실패했습니다!"
-TEXTS[ko_use_sudo]="다음 명령을 사용하세요: sudo %s"
-TEXTS[ko_press_key]="아무 키나 누르면 계속됩니다..."
-
-# 텍스트 가져오기 함수
-get_text() {
-    local key="${LANG_CODE}_$1"
-    local text="${TEXTS[$key]}"
-    if [[ -z "$text" ]]; then
-        # 폴백: 영어 텍스트 사용
-        text="${TEXTS[en_$1]}"
-    fi
-    echo "$text"
+# Simple text formatting function
+get_formatted_text() {
+    local text="$1"
+    shift
+    printf "$text" "$@"
 }
 
-# 포맷된 텍스트 가져오기 함수
-get_formatted_text() {
+# Get text function for compatibility
+get_text() {
     local key="$1"
-    shift
-    local text=$(get_text "$key")
-    printf "$text" "$@"
+    case "$key" in
+        "step_disk_prep") echo "$STEP_DISK_PREP" ;;
+        "step_partition") echo "$STEP_PARTITION" ;;
+        "step_filesystem") echo "$STEP_FILESYSTEM" ;;
+        "step_mount") echo "$STEP_MOUNT" ;;
+        "step_copy") echo "$STEP_COPY" ;;
+        "step_config") echo "$STEP_CONFIG" ;;
+        "step_users") echo "$STEP_USERS" ;;
+        "step_bootloader") echo "$STEP_BOOTLOADER" ;;
+        "step_finalize") echo "$STEP_FINALIZE" ;;
+        "step_cleanup") echo "$STEP_CLEANUP" ;;
+        "installing") echo "$INSTALLING" ;;
+        "install_complete") echo "$INSTALL_COMPLETE" ;;
+        "install_success") echo "$INSTALL_SUCCESS" ;;
+        "install_info") echo "$INSTALL_INFO" ;;
+        "next_steps") echo "$NEXT_STEPS" ;;
+        "remove_media") echo "$REMOVE_MEDIA" ;;
+        "reboot_system") echo "$REBOOT_SYSTEM" ;;
+        "boot_from_disk") echo "$BOOT_FROM_DISK" ;;
+        "rebooting") echo "$REBOOTING" ;;
+        "uefi_failed") echo "$UEFI_FAILED" ;;
+        "legacy_fallback") echo "$LEGACY_FALLBACK" ;;
+        "error_install") echo "$ERROR_INSTALL" ;;
+        "disk") echo "Disk" ;;
+        "hostname_label") echo "Hostname" ;;
+        "administrator") echo "Administrator" ;;
+        "password_strong") echo "Strong" ;;
+        "password_medium") echo "Medium" ;;
+        "password_weak") echo "Weak" ;;
+        *) echo "$key" ;;
+    esac
+}
+
+# Signal handling setup function
+setup_signal_handling() {
+    trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
 }
 
 # 네트워크 연결 확인 함수
 check_network() {
-    echo -e "${BLUE}$(get_text network_check)${NC}"
+    echo -e "${BLUE}Checking network connection...${NC}"
     
     # 다양한 방법으로 네트워크 확인
     local network_ok=false
@@ -292,30 +169,15 @@ check_network() {
     fi
     
     if [[ "$network_ok" == "true" ]]; then
-        log_success "$(get_text network_ok)"
+        log_success "Network connection available"
         return 0
     else
-        log_warning "$(get_text network_warning)"
-        # 네트워크 없어도 설치 진행 (안전한 입력)
-        trap '' INT TERM
-        local confirm
-        local attempts=0
-        while [[ $attempts -lt 3 ]]; do
-            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
-                if [[ "$confirm" == "y" ]]; then
-                    trap cleanup_on_error ERR
-                    return 0  
-                elif [[ "$confirm" == "n" ]]; then
-                    trap cleanup_on_error ERR
-                    return 1
-                fi
-            fi
-            ((attempts++))
-            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
-        done
-        # 기본값: 계속 진행
-        trap cleanup_on_error ERR
-        return 0
+        log_warning "No network connection detected"
+        if show_whiptail_yesno "Network Warning" "No network connection detected.\n\nDo you want to continue without network?"; then
+            return 0
+        else
+            return 1
+        fi
     fi
 }
 
@@ -424,78 +286,8 @@ read_key_safe() {
     return 0
 }
 
-# 언어 선택 함수 (개선됨)
-select_language() {
-    local languages=("English" "Korean (한국어)")
-    local selected=0
-    local key=""
-    
-    # 시그널 처리 강화
-    trap 'return 1' INT TERM
-    
-    while true; do
-        clear
-        echo -e "${CYAN}${BOLD}"
-        echo "╔══════════════════════════════════════════════════════════════╗"
-        echo "║                Language Selection / 언어 선택                  ║"
-        echo "╚══════════════════════════════════════════════════════════════╝"
-        echo -e "${NC}"
-        echo
-        echo -e "${WHITE}${BOLD}Select Language / 언어를 선택하세요${NC}"
-        echo
-        
-        for i in "${!languages[@]}"; do
-            if [[ $i -eq $selected ]]; then
-                echo -e "${GREEN}${BOLD}▶ ${languages[i]}${NC}"
-            else
-                echo -e "  ${languages[i]}"
-            fi
-        done
-        
-        echo
-        echo -e "${YELLOW}Arrow keys to select, Enter to confirm${NC}"
-        echo -e "${YELLOW}화살표 키로 선택, Enter로 확인${NC}"
-        echo -e "${YELLOW}(Press Ctrl+C to exit)${NC}"
-        
-        # 강화된 키 입력 처리
-        if key=$(read_key_safe); then
-            case "$key" in
-                $'\x1b[A'|$'\x1bOA') # 위쪽 화살표
-                    ((selected > 0)) && ((selected--))
-                    ;;
-                $'\x1b[B'|$'\x1bOB') # 아래쪽 화살표
-                    ((selected < ${#languages[@]} - 1)) && ((selected++))
-                    ;;
-                ''|$'\n'|$'\r') # Enter
-                    case $selected in
-                        0) LANG_CODE="en" ;;
-                        1) LANG_CODE="ko" ;;
-                    esac
-                    trap - INT TERM
-                    return 0
-                    ;;
-                $'\x03') # Ctrl+C
-                    trap - INT TERM
-                    return 1
-                    ;;
-                $'\x04') # Ctrl+D
-                    trap - INT TERM
-                    return 1
-                    ;;
-                'q'|'Q') # 종료
-                    trap - INT TERM
-                    return 1
-                    ;;
-                # 다른 키는 무시
-            esac
-        else
-            # 키 읽기 실패 시 계속 진행
-            continue
-        fi
-    done
-    
-    trap - INT TERM
-}
+# Language selection removed - English only
+# Korean support will be available after OS installation
 
 # 로그 및 UI 함수들
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -503,166 +295,68 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# 메뉴 선택 함수 (개선됨)
-show_menu() {
+# Whiptail menu function
+show_whiptail_menu() {
     local title="$1"
-    shift
+    local message="$2"
+    shift 2
     local options=("$@")
-    local selected=0
-    local key=""
     
-    # 시그널 처리 강화
-    trap 'return 255' INT TERM
-    
-    while true; do
-        clear
-        
-        # 헤더
-        echo -e "${CYAN}${BOLD}"
-        echo "╔══════════════════════════════════════════════════════════════╗"
-        local header_text="$(get_text title)"
-        local padding=$(( (62 - ${#header_text}) / 2 ))
-        printf "║%*s%s%*s║\n" $padding "" "$header_text" $((62 - ${#header_text} - padding)) ""
-        echo "╚══════════════════════════════════════════════════════════════╝"
-        echo -e "${NC}"
-        echo
-        echo -e "${WHITE}${BOLD}$title${NC}"
-        echo
-        
-        # 메뉴 옵션들
-        for i in "${!options[@]}"; do
-            if [[ $i -eq $selected ]]; then
-                echo -e "${GREEN}${BOLD}▶ ${options[i]}${NC}"
-            else
-                echo -e "  ${options[i]}"
-            fi
-        done
-        
-        echo
-        echo -e "${YELLOW}$(get_text arrow_keys)${NC}"
-        echo -e "${YELLOW}(Press Ctrl+C to cancel)${NC}"
-        
-        # 강화된 키 입력 처리
-        if key=$(read_key_safe); then
-            case "$key" in
-                $'\x1b[A'|$'\x1bOA') # 위쪽 화살표
-                    ((selected > 0)) && ((selected--))
-                    ;;
-                $'\x1b[B'|$'\x1bOB') # 아래쪽 화살표
-                    ((selected < ${#options[@]} - 1)) && ((selected++))
-                    ;;
-                ''|$'\n'|$'\r') # Enter
-                    trap - INT TERM
-                    return $selected
-                    ;;
-                $'\x03') # Ctrl+C
-                    trap - INT TERM
-                    return 255  # 취소를 나타내는 특별한 값
-                    ;;
-                $'\x04') # Ctrl+D
-                    trap - INT TERM
-                    return 255
-                    ;;
-                'q'|'Q') # 종료
-                    trap - INT TERM
-                    return 255
-                    ;;
-                # 숫자 키로 직접 선택
-                [1-9])
-                    local num=$((${key} - 1))
-                    if [[ $num -ge 0 ]] && [[ $num -lt ${#options[@]} ]]; then
-                        selected=$num
-                        trap - INT TERM
-                        return $selected
-                    fi
-                    ;;
-                # 다른 키는 무시
-            esac
-        else
-            # 키 읽기 실패 시 계속 진행
-            continue
-        fi
+    # Build whiptail menu options
+    local menu_items=()
+    for i in "${!options[@]}"; do
+        menu_items+=("$i" "${options[i]}")
     done
     
-    trap - INT TERM
+    local choice
+    if choice=$(whiptail --title "$title" --menu "$message" 20 70 10 "${menu_items[@]}" 3>&1 1>&2 2>&3); then
+        return $choice
+    else
+        return 255  # User cancelled
+    fi
 }
 
-# 안전한 입력 함수 (시그널 완전 차단)
-get_input_safe() {
+# Whiptail input functions
+get_whiptail_input() {
+    local title="$1"
+    local prompt="$2"
+    local default="$3"
+    
+    whiptail --title "$title" --inputbox "$prompt" 10 60 "$default" 3>&1 1>&2 2>&3
+}
+
+get_whiptail_password() {
+    local title="$1"
+    local prompt="$2"
+    
+    whiptail --title "$title" --passwordbox "$prompt" 10 60 3>&1 1>&2 2>&3
+}
+
+show_whiptail_yesno() {
+    local title="$1"
+    local message="$2"
+    
+    whiptail --title "$title" --yesno "$message" 10 60
+}
+
+show_whiptail_msgbox() {
+    local title="$1"
+    local message="$2"
+    
+    whiptail --title "$title" --msgbox "$message" 15 70
+}
+
+# Legacy function for compatibility
+get_input() {
     local prompt="$1"
     local default="$2"
     local is_password="$3"
-    local input=""
-    local max_attempts=5
-    local attempt=0
     
-    # 시그널 완전 차단
-    trap '' INT TERM QUIT HUP
-    
-    echo -e "${WHITE}${BOLD}$prompt${NC}"
-    if [[ -n "$default" ]]; then
-        echo -e "${YELLOW}($(get_text default): $default)${NC}"
+    if [[ "$is_password" == "true" ]]; then
+        get_whiptail_password "Input Required" "$prompt"
+    else
+        get_whiptail_input "Input Required" "$prompt" "$default"
     fi
-    echo -e "${YELLOW}(입력 중에는 Ctrl+C로 취소할 수 없습니다)${NC}"
-    echo -n "> "
-    
-    while [[ $attempt -lt $max_attempts ]]; do
-        if [[ "$is_password" == "true" ]]; then
-            # 비밀번호 입력 (시그널 무시)
-            if input=$(bash -c 'trap "" INT TERM; read -s input && echo "$input"'); then
-                echo
-                break
-            else
-                ((attempt++))
-                if [[ $attempt -lt $max_attempts ]]; then
-                    echo
-                    echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
-                    echo -n "> "
-                fi
-            fi
-        else
-            # 일반 입력 (시그널 무시)
-            if input=$(bash -c 'trap "" INT TERM; read input && echo "$input"'); then
-                break
-            else
-                ((attempt++))
-                if [[ $attempt -lt $max_attempts ]]; then
-                    echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
-                    echo -n "> "
-                fi
-            fi
-        fi
-    done
-    
-    # 최대 시도 횟수 초과시 기본값 사용
-    if [[ $attempt -eq $max_attempts ]]; then
-        log_warning "최대 시도 횟수 초과, 기본값 사용: $default"
-        input="$default"
-    fi
-    
-    # 비밀번호 강도 확인 (비밀번호인 경우)
-    if [[ "$is_password" == "true" ]] && [[ -n "$input" ]]; then
-        local strength=$(check_password_strength "$input")
-        check_password_strength "$input" >/dev/null
-        local strength_level=$?
-        
-        echo -e "${CYAN}$(get_formatted_text password_strength "$strength")${NC}"
-        
-        # 너무 약한 비밀번호 경고 (강제 진행)
-        if [[ $strength_level -lt 2 ]] && [[ ${#input} -lt 6 ]]; then
-            log_warning "약한 비밀번호이지만 계속 진행합니다."
-        fi
-    fi
-    
-    # 시그널 처리 복원 (설치 중이 아닌 경우에만)
-    trap cleanup_on_error ERR
-    
-    echo "${input:-$default}"
-}
-
-# 기존 함수를 안전한 버전으로 교체
-get_input() {
-    get_input_safe "$@"
 }
 
 # 디스크 선택 함수 (개선됨)
@@ -696,55 +390,39 @@ select_disk() {
         return 1
     fi
     
-    disk_info+=("$(get_text cancel)")
+    disk_info+=("$CANCEL")
     
-    show_menu "$(get_text select_disk)" "${disk_info[@]}"
+    show_whiptail_menu "Select Disk" "Choose disk to install Hemmins OS:" "${disk_info[@]}"
     local choice=$?
     
+    if [[ $choice -eq 255 ]]; then
+        return 1  # User cancelled
+    fi
+    
     if [[ $choice -eq ${#disk_info[@]}-1 ]]; then
-        return 1  # 취소
+        return 1  # Cancel option selected
     fi
     
     SELECTED_DISK="${disks[$choice]}"
     
-    # 디스크 존재 확인
+    # Disk existence check
     if [[ ! -b "/dev/$SELECTED_DISK" ]]; then
-        log_error "$(get_formatted_text error_disk_not_found "$SELECTED_DISK")"
+        show_whiptail_msgbox "Disk Not Found" "Disk /dev/$SELECTED_DISK not found."
         return 1
     fi
     
-    # 디스크 크기 확인
+    # Disk size check
     DISK_SIZE_GB=$(get_disk_size_gb "$SELECTED_DISK")
     if [[ $DISK_SIZE_GB -lt 8 ]]; then
-        log_error "$(get_formatted_text disk_too_small "$DISK_SIZE_GB")"
+        show_whiptail_msgbox "Disk Too Small" "Disk is too small! Minimum 8GB required, found ${DISK_SIZE_GB}GB."
         return 1
     fi
     
-    # USB 디스크 경고 (안전한 입력)
+    # USB disk warning
     if is_usb_disk "$SELECTED_DISK"; then
-        echo -e "${YELLOW}$(get_text usb_warning)${NC}"
-        trap '' INT TERM
-        local confirm
-        local attempts=0
-        while [[ $attempts -lt 3 ]]; do
-            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
-                if [[ "$confirm" == "y" ]]; then
-                    trap cleanup_on_error ERR
-                    break
-                elif [[ "$confirm" == "n" ]]; then
-                    trap cleanup_on_error ERR
-                    return 1
-                fi
-            fi
-            ((attempts++))
-            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
-        done
-        if [[ $attempts -eq 3 ]]; then
-            log_warning "최대 시도 횟수 초과, 취소합니다."
-            trap cleanup_on_error ERR
+        if ! show_whiptail_yesno "USB Warning" "WARNING: This appears to be a USB drive.\n\nDo you want to continue?"; then
             return 1
         fi
-        trap cleanup_on_error ERR
     fi
     
     return 0
@@ -753,215 +431,164 @@ select_disk() {
 # 설치 타입 선택
 select_install_type() {
     local types=(
-        "$(get_text full_disk)"
-        "$(get_text manual_partition)"
-        "$(get_text cancel)"
+        "$FULL_DISK"
+        "$MANUAL_PARTITION"
+        "$CANCEL"
     )
     
-    show_menu "$(get_text install_type)" "${types[@]}"
+    show_whiptail_menu "Installation Type" "Select installation type:" "${types[@]}"
     local choice=$?
     
     case $choice in
         0) INSTALL_TYPE="full" ;;
         1) INSTALL_TYPE="manual" ;;
-        2) return 1 ;;
+        2|255) return 1 ;;
     esac
     return 0
 }
 
-# 파티션 크기 설정 (개선됨)
+# Partition configuration with whiptail
 configure_partitions() {
     if [[ "$INSTALL_TYPE" == "manual" ]]; then
-        clear
-        echo -e "${CYAN}${BOLD}$(get_text partition_config)${NC}"
-        echo
-        echo "Available disk space: ${DISK_SIZE_GB}GB ($((DISK_SIZE_GB * 1024))MB)"
-        echo
-        
         while true; do
-            EFI_SIZE=$(get_input "$(get_text efi_size)" "512")
-            SWAP_SIZE=$(get_input "$(get_text swap_size)" "2048")
+            EFI_SIZE=$(get_whiptail_input "Partition Configuration" "EFI partition size (MB):" "512")
+            if [[ $? -ne 0 ]]; then
+                return 1  # User cancelled
+            fi
             
-            # 숫자 검증
+            SWAP_SIZE=$(get_whiptail_input "Partition Configuration" "Swap partition size (MB, 0=no swap):" "2048")
+            if [[ $? -ne 0 ]]; then
+                return 1  # User cancelled
+            fi
+            
+            # Number validation
             if ! [[ "$EFI_SIZE" =~ ^[0-9]+$ ]] || ! [[ "$SWAP_SIZE" =~ ^[0-9]+$ ]]; then
-                log_error "Invalid partition size!"
+                show_whiptail_msgbox "Invalid Input" "Please enter valid numbers for partition sizes."
                 continue
             fi
             
-            # 파티션 크기 검증
-            TOTAL_REQUIRED_SIZE=$((EFI_SIZE + SWAP_SIZE + 4096))  # 최소 4GB 루트
+            # Partition size validation
+            TOTAL_REQUIRED_SIZE=$((EFI_SIZE + SWAP_SIZE + 4096))  # Minimum 4GB root
             local disk_mb=$((DISK_SIZE_GB * 1024))
             
             if [[ $TOTAL_REQUIRED_SIZE -gt $disk_mb ]]; then
-                log_error "$(get_formatted_text partition_too_large "$TOTAL_REQUIRED_SIZE" "$disk_mb")"
+                show_whiptail_msgbox "Insufficient Space" "Total partition size (${TOTAL_REQUIRED_SIZE}MB) exceeds disk capacity (${disk_mb}MB)!"
                 continue
             fi
             
             break
         done
         
-        echo
-        echo "$(get_text configured_partitions)"
-        echo "  EFI: ${EFI_SIZE}MB"
-        echo "  Swap: ${SWAP_SIZE}MB"
-        echo "  Root: $((disk_mb - EFI_SIZE - SWAP_SIZE))MB"
-        echo
+        local root_size=$((disk_mb - EFI_SIZE - SWAP_SIZE))
+        local summary="Configured partitions:\n\n"
+        summary+="EFI: ${EFI_SIZE}MB\n"
+        summary+="Swap: ${SWAP_SIZE}MB\n"
+        summary+="Root: ${root_size}MB\n\n"
+        summary+="Continue with this configuration?"
         
-        # 파티션 설정 확인 (안전한 입력)
-        trap '' INT TERM
-        local confirm
-        local attempts=0
-        while [[ $attempts -lt 3 ]]; do
-            echo -n "$(get_text continue_question) "
-            if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
-                if [[ "$confirm" == "y" ]]; then
-                    trap cleanup_on_error ERR
-                    break
-                elif [[ "$confirm" == "n" ]]; then
-                    trap cleanup_on_error ERR
-                    return 1
-                fi
-            fi
-            ((attempts++))
-            echo -e "${YELLOW}y 또는 n을 입력하세요${NC}"
-        done
-        if [[ $attempts -eq 3 ]]; then
-            log_warning "최대 시도 횟수 초과, 취소합니다."
-            trap cleanup_on_error ERR
+        if ! show_whiptail_yesno "Partition Configuration" "$summary"; then
             return 1
         fi
-        trap cleanup_on_error ERR
     fi
     return 0
 }
 
-# 사용자 설정 (개선됨)
+# User configuration with whiptail
 configure_users() {
-    clear
-    echo -e "${CYAN}${BOLD}$(get_text user_config)${NC}"
-    echo
-    
-    # 사용자명 입력 및 검증
+    # Username input and validation
     while true; do
-        ADMIN_USER=$(get_input "$(get_text admin_username)" "admin")
+        ADMIN_USER=$(get_whiptail_input "User Configuration" "Enter administrator username:" "admin")
         
-        # 사용자명 검증 (더 엄격함)
+        if [[ $? -ne 0 ]]; then
+            return 1  # User cancelled
+        fi
+        
+        # Username validation
         if [[ "$ADMIN_USER" =~ ^[a-z][a-z0-9_-]*$ ]] && [[ ${#ADMIN_USER} -ge 3 ]] && [[ ${#ADMIN_USER} -le 32 ]]; then
             break
         else
-            echo -e "${RED}$(get_text invalid_username)${NC}"
-            echo
+            show_whiptail_msgbox "Invalid Username" "Invalid username! Use lowercase letters, numbers, underscore and dash only.\nLength must be 3-32 characters."
         fi
     done
     
-    # 비밀번호 입력 및 검증
+    # Password input and validation
     while true; do
-        ADMIN_PASS=$(get_input "$(get_text admin_password)" "" "true")
+        ADMIN_PASS=$(get_whiptail_password "User Configuration" "Enter administrator password:")
+        
         if [[ $? -ne 0 ]]; then
-            continue  # 비밀번호가 너무 약해서 거부됨
+            return 1  # User cancelled
         fi
         
-        local confirm_pass=$(get_input "$(get_text confirm_password)" "" "true")
+        local confirm_pass=$(get_whiptail_password "User Configuration" "Confirm administrator password:")
+        
+        if [[ $? -ne 0 ]]; then
+            return 1  # User cancelled
+        fi
         
         if [[ "$ADMIN_PASS" == "$confirm_pass" ]] && [[ -n "$ADMIN_PASS" ]]; then
             break
         else
-            echo -e "${RED}$(get_text password_mismatch)${NC}"
-            echo
+            show_whiptail_msgbox "Password Mismatch" "Passwords do not match. Please try again."
         fi
     done
     
-    # Root 비밀번호
+    # Root password
     while true; do
-        ROOT_PASS=$(get_input "$(get_text root_password)" "" "true")
+        ROOT_PASS=$(get_whiptail_password "User Configuration" "Enter root password:")
+        
+        if [[ $? -ne 0 ]]; then
+            return 1  # User cancelled
+        fi
+        
         if [[ -n "$ROOT_PASS" ]]; then
             break
         else
-            log_error "Root password cannot be empty!"
+            show_whiptail_msgbox "Empty Password" "Root password cannot be empty!"
         fi
     done
     
     return 0
 }
 
-# 시스템 설정 (개선됨)
+# System configuration with whiptail
 configure_system() {
-    clear
-    echo -e "${CYAN}${BOLD}$(get_text system_config)${NC}"
-    echo
-    
     while true; do
-        HOSTNAME=$(get_input "$(get_text hostname)" "hemmins-os")
+        HOSTNAME=$(get_whiptail_input "System Configuration" "Enter hostname:" "hemmins-os")
         
-        # 호스트명 검증 (더 엄격함)
+        if [[ $? -ne 0 ]]; then
+            return 1  # User cancelled
+        fi
+        
+        # Hostname validation
         if [[ "$HOSTNAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$ ]] && [[ ${#HOSTNAME} -le 63 ]]; then
             break
         else
-            echo -e "${RED}$(get_text invalid_hostname)${NC}"
-            echo
+            show_whiptail_msgbox "Invalid Hostname" "Invalid hostname! Use letters, numbers, and hyphens only.\nMaximum length is 63 characters."
         fi
     done
     
     return 0
 }
 
-# 설치 요약 표시
+# Installation summary with whiptail
 show_summary() {
-    clear
-    echo -e "${CYAN}${BOLD}$(get_text install_summary)${NC}"
-    echo
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${WHITE}$(get_text disk):${NC} /dev/$SELECTED_DISK (${DISK_SIZE_GB}GB)"
+    local summary="Installation Summary\n\n"
+    summary+="Disk: /dev/$SELECTED_DISK (${DISK_SIZE_GB}GB)\n"
     
     if [[ "$INSTALL_TYPE" == "full" ]]; then
-        echo -e "${WHITE}$(get_text install_type_label):${NC} $(get_text full_disk_label)"
+        summary+="Installation Type: Use entire disk\n"
     else
-        echo -e "${WHITE}$(get_text install_type_label):${NC} $(get_text manual_label)"
-        echo -e "${WHITE}$(get_text efi_partition):${NC} ${EFI_SIZE}MB"
-        echo -e "${WHITE}$(get_text swap_partition):${NC} ${SWAP_SIZE}MB"
+        summary+="Installation Type: Manual partitioning\n"
+        summary+="EFI Partition: ${EFI_SIZE}MB\n"
+        summary+="Swap Partition: ${SWAP_SIZE}MB\n"
     fi
     
-    echo -e "${WHITE}$(get_text hostname_label):${NC} $HOSTNAME"
-    echo -e "${WHITE}$(get_text administrator):${NC} $ADMIN_USER"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
+    summary+="Hostname: $HOSTNAME\n"
+    summary+="Administrator: $ADMIN_USER\n\n"
+    summary+="WARNING: All data on /dev/$SELECTED_DISK will be erased!\n\n"
+    summary+="Do you want to start the installation?"
     
-    echo -e "${RED}${BOLD}$(get_formatted_text warning_text "$SELECTED_DISK")${NC}"
-    echo
-    
-    # 안전한 확인 입력 (시그널 차단)
-    trap '' INT TERM
-    echo -e "${YELLOW}설치를 시작하려면 'yes'를 입력하세요. (중단 불가)${NC}"
-    
-    local confirm
-    local max_attempts=3
-    local attempt=0
-    
-    while [[ $attempt -lt $max_attempts ]]; do
-        echo -n "$(get_text start_confirm) "
-        if confirm=$(bash -c 'trap "" INT TERM; read confirm && echo "$confirm"' 2>/dev/null); then
-            if [[ "$confirm" == "yes" ]]; then
-                trap cleanup_on_error ERR
-                return 0
-            elif [[ "$confirm" == "no" ]] || [[ "$confirm" == "n" ]]; then
-                trap cleanup_on_error ERR  
-                return 1
-            else
-                echo -e "${YELLOW}'yes' 또는 'no'를 입력하세요.${NC}"
-                ((attempt++))
-            fi
-        else
-            ((attempt++))
-            if [[ $attempt -lt $max_attempts ]]; then
-                echo -e "${YELLOW}입력을 다시 시도하세요 ($attempt/$max_attempts)${NC}"
-            fi
-        fi
-    done
-    
-    # 최대 시도 횟수 초과 시 취소
-    log_warning "최대 시도 횟수 초과, 설치를 취소합니다."
-    trap cleanup_on_error ERR
-    return 1
+    show_whiptail_yesno "$INSTALL_SUMMARY" "$summary"
 }
 
 # 향상된 진행률 표시 함수
@@ -1254,6 +881,7 @@ apt autoremove -y >/dev/null 2>&1 || true
 
 # 설치 스크립트 제거
 rm -f /usr/local/bin/install-to-disk.sh
+rm -f /usr/local/bin/installer-wrapper.sh
 
 echo "User setup completed"
 EOF
@@ -1387,10 +1015,9 @@ show_completion() {
     echo "$(get_text boot_from_disk)"
     echo
     
-    # 시그널 차단하여 안전한 메뉴 선택
-    local options=("$(get_text reboot_now)" "$(get_text reboot_later)")
-    trap '' INT TERM  # 재부팅 선택 중에는 차단
-    show_menu "$(get_text reboot_options)" "${options[@]}"
+    # Safe menu selection for reboot options
+    local options=("$REBOOT_NOW" "$REBOOT_LATER")
+    show_whiptail_menu "$REBOOT_OPTIONS" "Choose reboot option:" "${options[@]}"
     local choice=$?
     
     if [[ $choice -eq 0 ]]; then
@@ -1448,81 +1075,141 @@ cleanup_on_error() {
 
 trap cleanup_on_error ERR
 
-# 디스크 정보 표시 함수 (개선됨)
+# 디스크 정보 표시 함수 (개선됨 + 에러 처리)
 show_disk_info() {
-    clear
-    echo -e "${CYAN}${BOLD}$(get_text view_disk)${NC}"
-    echo
-    echo "Available Storage Devices:"
-    echo "=========================="
-    lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL,FSTYPE
-    echo
-    echo "Memory Information:"
-    echo "=================="
-    free -h
-    echo
-    echo "Network Interfaces:"
-    echo "=================="
-    ip addr show | grep -E '^[0-9]+:|inet ' | sed 's/^/  /'
-    echo
-    # 안전한 키 대기 (시그널 차단)
-    trap '' INT TERM
-    echo -e "${YELLOW}다시 메뉴로 돌아가려면 아무 키나 누르세요 (중단 불가)${NC}"
+    local disk_info="Available Storage Devices:\n"
     
-    # 안전한 키 대기
-    local key_attempts=0
-    while [[ $key_attempts -lt 20 ]]; do
-        if bash -c 'trap "" INT TERM; read -n1 -s -t 1' 2>/dev/null; then
-            break
+    # Safe command execution with error handling
+    if command -v lsblk >/dev/null 2>&1; then
+        disk_info+="$(lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL,FSTYPE 2>/dev/null || echo 'Error getting disk info')\n\n"
+    else
+        disk_info+="lsblk command not available\n\n"
+    fi
+    
+    disk_info+="Memory Information:\n"
+    if command -v free >/dev/null 2>&1; then
+        disk_info+="$(free -h 2>/dev/null || echo 'Error getting memory info')\n\n"
+    else
+        disk_info+="free command not available\n\n"
+    fi
+    
+    disk_info+="Network Interfaces:\n"
+    if command -v ip >/dev/null 2>&1; then
+        disk_info+="$(ip addr show 2>/dev/null | grep -E '^[0-9]+:|inet ' | sed 's/^/  /' || echo '  Error getting network info')"
+    else
+        disk_info+="ip command not available"
+    fi
+    
+    # Error handling for whiptail
+    if ! show_whiptail_msgbox "$VIEW_DISK" "$disk_info"; then
+        log_warning "Failed to display disk information dialog"
+        echo -e "\n${YELLOW}Disk Information:${NC}"
+        echo -e "$disk_info"
+        echo -e "\n${YELLOW}Press any key to continue...${NC}"
+        read -n1 -s
+    fi
+}
+
+# 안전한 메인 루프 함수
+safe_main_loop() {
+    local max_retries=3
+    local retry_count=0
+    
+    while [[ $retry_count -lt $max_retries ]]; do
+        log_info "Starting installer (attempt $((retry_count + 1))/$max_retries)"
+        
+        if main_installer; then
+            log_success "Installer completed successfully"
+            return 0
+        else
+            ((retry_count++))
+            log_warning "Installer failed, attempt $retry_count/$max_retries"
+            
+            if [[ $retry_count -lt $max_retries ]]; then
+                log_info "Restarting installer in 3 seconds..."
+                sleep 3
+            fi
         fi
-        ((key_attempts++))
     done
     
-    # 시그널 처리 복원
-    trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
+    log_error "Installer failed after $max_retries attempts"
+    return 1
 }
 
 # 메인 설치 프로세스
-main() {
-    # 루트 권한 확인
+main_installer() {
+    # Root privilege check
     if [[ $EUID -ne 0 ]]; then
         clear
-        log_error "$(get_text error_root)"
-        echo "$(get_formatted_text use_sudo "$0")"
+        log_error "$ERROR_ROOT"
+        echo "$(get_formatted_text "$USE_SUDO" "$0")"
         exit 1
     fi
     
-    # 초기 시그널 처리 설정 (사용자 입력 단계에서만 허용)
-    trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
+    # Set up signal handling for interactive mode
+    setup_signal_handling
     
-    # 언어 선택
-    if ! select_language; then
-        log_info "Language selection cancelled"
-        exit 0
-    fi
+    # Language is fixed to English only
+    LANG_CODE="en"
     
-    # 네트워크 연결 확인
+    # Network connection check
     check_network || log_warning "Continuing without network connection"
     
-    # 메인 루프
+    # Main menu loop with enhanced error handling
+    local menu_retry_count=0
+    local max_menu_retries=5
+    
     while true; do
-        # 메인 메뉴
+        # Reset retry count on successful menu display
+        if [[ $menu_retry_count -gt 0 ]]; then
+            log_info "Menu retry count reset"
+            menu_retry_count=0
+        fi
+        
+        # Main menu
         local main_options=(
-            "$(get_text start_install)"
-            "$(get_text view_disk)"
-            "$(get_text language)"
-            "$(get_text exit)"
+            "$START_INSTALL"
+            "$VIEW_DISK"
+            "Language (English only)"
+            "$EXIT_INSTALLER"
         )
         
-        show_menu "$(get_text welcome)" "${main_options[@]}"
-        local choice=$?
+        # Safe menu display with error handling
+        local choice
+        if show_whiptail_menu "$INSTALLER_TITLE" "$WELCOME_MSG" "${main_options[@]}"; then
+            choice=$?
+        else
+            ((menu_retry_count++))
+            log_warning "Menu display failed (attempt $menu_retry_count/$max_menu_retries)"
+            
+            if [[ $menu_retry_count -ge $max_menu_retries ]]; then
+                log_error "Menu failed too many times, falling back to text mode"
+                echo -e "\n${CYAN}${BOLD}$INSTALLER_TITLE${NC}"
+                echo -e "$WELCOME_MSG\n"
+                echo "0) $START_INSTALL"
+                echo "1) $VIEW_DISK"
+                echo "2) Language (English only)"
+                echo "3) $EXIT_INSTALLER"
+                echo -e "\nEnter choice (0-3): "
+                read -r choice
+                
+                # Validate input
+                if ! [[ "$choice" =~ ^[0-3]$ ]]; then
+                    log_warning "Invalid choice: $choice"
+                    choice=255  # Treat as cancelled
+                fi
+            else
+                sleep 2
+                continue
+            fi
+        fi
         
         case $choice in
-            0) # 설치 시작
-                # 설치 중에는 모든 시그널 차단
+            0) # Start installation
+                # Block signals during installation
                 trap '' INT TERM QUIT HUP
                 log_info "Starting installation process..."
-                log_warning "설치 진행 중에는 중단할 수 없습니다!"
+                log_warning "Installation cannot be interrupted!"
                 
                 if select_disk; then
                     if select_install_type; then
@@ -1534,11 +1221,9 @@ main() {
                                             show_completion
                                             break
                                         else
-                                            # 설치 실패 시 시그널 허용하고 메뉴로 돌아감
+                                            # Installation failed, return to main menu
                                             trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
-                                            echo -e "${RED}설치에 실패했습니다.${NC}"
-                                            echo -e "${YELLOW}아무 키나 누르면 메인 메뉴로 돌아갑니다.${NC}"
-                                            read -n1 -s
+                                            show_whiptail_msgbox "Installation Failed" "Installation failed.\n\nReturning to main menu."
                                         fi
                                     fi
                                 fi
@@ -1546,25 +1231,46 @@ main() {
                         fi
                     fi
                 fi
-                # 어느 단계에서든 실패하면 시그널 허용하고 메인 메뉴로 돌아감
-                trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
+                # Return to main menu on any failure
+                setup_signal_handling
                 ;;
             1) # 디스크 정보 보기
-                show_disk_info
+                {
+                    log_info "Showing disk information..."
+                    show_disk_info || {
+                        log_error "Failed to show disk information"
+                        show_whiptail_msgbox "Error" "Failed to display disk information.\n\nReturning to main menu."
+                    }
+                } 2>/dev/null || {
+                    log_error "Disk information display failed with error"
+                    echo -e "${RED}Error occurred while showing disk information.${NC}"
+                    echo -e "${YELLOW}Press any key to continue...${NC}"
+                    read -n1 -s 2>/dev/null || sleep 2
+                }
                 ;;
-            2) # 언어 변경
-                select_language
+            2) # Language (fixed to English)
+                {
+                    log_info "Showing language information..."
+                    if ! whiptail --title "Language" --msgbox "Language is fixed to English during installation.\n\nKorean language support will be available after OS installation." 10 60; then
+                        log_warning "Failed to display language dialog"
+                        echo -e "\n${YELLOW}Language Information:${NC}"
+                        echo "Language is fixed to English during installation."
+                        echo "Korean language support will be available after OS installation."
+                        echo -e "\n${YELLOW}Press any key to continue...${NC}"
+                        read -n1 -s
+                    fi
+                } 2>/dev/null || {
+                    log_error "Language dialog failed with error"
+                    echo -e "${RED}Error occurred while showing language information.${NC}"
+                    echo -e "${YELLOW}Press any key to continue...${NC}"
+                    read -n1 -s 2>/dev/null || sleep 2
+                }
                 ;;
-            3) # 종료
+            3|255) # Exit or cancelled
                 clear
-                echo -e "${YELLOW}$(get_text exit)...${NC}"
-                if [[ "$LANG_CODE" == "ko" ]]; then
-                    echo "설치를 취소했습니다."
-                    echo "안전하게 종료합니다."
-                else
-                    echo "Installation cancelled."
-                    echo "Exiting safely."
-                fi
+                echo -e "${YELLOW}$EXIT_INSTALLER...${NC}"
+                echo "Installation cancelled."
+                echo "Exiting safely."
                 sleep 1
                 exit 0
                 ;;
@@ -1572,8 +1278,19 @@ main() {
     done
 }
 
-# 전역 시그널 처리 (기본적으로 비활성화, main에서 설정)
-# trap 'echo; log_info "Installation interrupted by user"; exit 1' INT TERM
+# Global signal handling setup in main function
 
-# 프로그램 시작
-main "$@"
+# 프로그램 시작 - 래퍼에서 호출되는지 확인
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 스크립트가 직접 실행된 경우
+    if [[ -n "$INSTALLER_AUTO_RESTART" ]]; then
+        # wrapper에서 호출된 경우 - 단순 실행
+        main_installer "$@"
+    else
+        # 직접 실행된 경우 - 안전한 재시작 메커니즘 사용
+        safe_main_loop "$@"
+    fi
+else
+    # 스크립트가 소스로 로드된 경우
+    main_installer "$@"
+fi

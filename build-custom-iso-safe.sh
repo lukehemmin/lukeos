@@ -33,7 +33,55 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 에러 처리 함수 (SSH 연결 보호)
+# 이전 빌드 디렉토리 안전 정리 함수
+cleanup_previous_build() {
+    if [[ -d "$WORK_DIR" ]]; then
+        log_info "이전 빌드 디렉토리 정리 중..."
+        
+        # 마운트 포인트 확인 및 해제
+        if mountpoint -q "$WORK_DIR/chroot/dev/pts" 2>/dev/null; then
+            sudo umount "$WORK_DIR/chroot/dev/pts" 2>/dev/null || sudo umount -l "$WORK_DIR/chroot/dev/pts" 2>/dev/null || true
+        fi
+        if mountpoint -q "$WORK_DIR/chroot/dev" 2>/dev/null; then
+            sudo umount "$WORK_DIR/chroot/dev" 2>/dev/null || sudo umount -l "$WORK_DIR/chroot/dev" 2>/dev/null || true
+        fi
+        if mountpoint -q "$WORK_DIR/chroot/proc" 2>/dev/null; then
+            sudo umount "$WORK_DIR/chroot/proc" 2>/dev/null || sudo umount -l "$WORK_DIR/chroot/proc" 2>/dev/null || true
+        fi
+        if mountpoint -q "$WORK_DIR/chroot/sys" 2>/dev/null; then
+            sudo umount "$WORK_DIR/chroot/sys" 2>/dev/null || sudo umount -l "$WORK_DIR/chroot/sys" 2>/dev/null || true
+        fi
+        
+        # chroot 프로세스 정리
+        if [[ -d "$WORK_DIR/chroot" ]]; then
+            local chroot_pids=$(sudo lsof +D "$WORK_DIR/chroot" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u 2>/dev/null || true)
+            if [[ -n "$chroot_pids" ]]; then
+                for pid in $chroot_pids; do
+                    if [[ -n "$pid" ]] && [[ "$pid" != "$$" ]]; then
+                        sudo kill -TERM "$pid" 2>/dev/null || true
+                    fi
+                done
+                sleep 2
+                for pid in $chroot_pids; do
+                    if [[ -n "$pid" ]] && [[ "$pid" != "$$" ]]; then
+                        sudo kill -KILL "$pid" 2>/dev/null || true
+                    fi
+                done
+            fi
+        fi
+        
+        # sudo로 디렉토리 삭제 (권한 문제 해결)
+        sudo rm -rf "$WORK_DIR" || {
+            log_warning "일반 삭제 실패, 강제 삭제 시도..."
+            sudo chmod -R 755 "$WORK_DIR" 2>/dev/null || true
+            sudo rm -rf "$WORK_DIR" 2>/dev/null || true
+        }
+        
+        log_success "이전 빌드 디렉토리 정리 완료"
+    fi
+}
+
+# 에러 처리 함수 (SSH 연결 보호 + 권한 문제 해결)
 cleanup_on_error() {
     log_error "스크립트 실행 중 에러가 발생했습니다!"
     log_warning "정리 작업을 수행합니다. SSH 연결은 유지됩니다."
@@ -98,8 +146,15 @@ cleanup_on_error() {
         sleep 1
     done
     
+    # 권한 문제 해결을 위한 빌드 디렉토리 정리
+    if [[ -d "$WORK_DIR" ]]; then
+        log_info "빌드 디렉토리 권한 정리 중..."
+        sudo chmod -R 755 "$WORK_DIR" 2>/dev/null || true
+        sudo rm -rf "$WORK_DIR" 2>/dev/null || true
+    fi
+    
     log_warning "정리 작업이 완료되었습니다. 터미널 연결은 안전합니다."
-    log_info "필요한 경우 'sudo rm -rf $WORK_DIR'로 수동 정리하세요."
+    log_info "스크립트를 다시 실행할 수 있습니다."
     
     exit 1
 }
@@ -112,7 +167,7 @@ log_info "작업 디렉토리: $WORK_DIR"
 
 # 1. 작업 환경 준비
 log_info "[1/13] 작업 환경 준비 중..."
-rm -rf "$WORK_DIR"
+cleanup_previous_build
 mkdir -p "$WORK_DIR"/{chroot,image/{live,isolinux,boot/grub}}
 cd "$WORK_DIR"
 
@@ -696,13 +751,13 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
 GETTY_EOF
 
-# installer 사용자의 .bashrc에 설치 프로그램 자동 실행 추가
+# installer 사용자의 .bashrc에 설치 프로그램 자동 실행 추가 (래퍼 사용)
 cat >> /home/installer/.bashrc << 'BASHRC_EOF'
 
-# Hemmins OS 설치 프로그램 자동 시작
-if [[ -f /usr/local/bin/install-to-disk.sh ]] && [[ -z "$INSTALLER_STARTED" ]]; then
-    export INSTALLER_STARTED=1
-    sudo /usr/local/bin/install-to-disk.sh
+# Hemmins OS 설치 프로그램 자동 시작 (Auto-Restart 래퍼 사용)
+if [[ -f /usr/local/bin/installer-wrapper.sh ]] && [[ -z "$INSTALLER_WRAPPER_STARTED" ]] && [[ -z "$SSH_CONNECTION" ]]; then
+    export INSTALLER_WRAPPER_STARTED=1
+    /usr/local/bin/installer-wrapper.sh
 fi
 BASHRC_EOF
 
@@ -758,6 +813,31 @@ sudo chmod +x chroot/usr/local/bin/install-to-disk.sh
 sudo cp ../install-to-disk.sh chroot/home/installer/
 sudo chown 1001:1001 chroot/home/installer/install-to-disk.sh
 sudo chmod +x chroot/home/installer/install-to-disk.sh
+
+# 설치 래퍼 스크립트 추가
+if [[ -f "../installer-wrapper.sh" ]]; then
+    log_info "Installing auto-restart wrapper script..."
+    
+    # 래퍼 스크립트 검증
+    if ! bash -n ../installer-wrapper.sh; then
+        log_error "installer-wrapper.sh에 문법 오류가 있습니다!"
+        exit 1
+    fi
+    
+    # 래퍼 스크립트를 시스템에 복사
+    sudo cp ../installer-wrapper.sh chroot/usr/local/bin/
+    sudo chmod +x chroot/usr/local/bin/installer-wrapper.sh
+    
+    # installer 사용자 홈에도 복사 (백업용)
+    sudo cp ../installer-wrapper.sh chroot/home/installer/
+    sudo chown 1001:1001 chroot/home/installer/installer-wrapper.sh
+    sudo chmod +x chroot/home/installer/installer-wrapper.sh
+    
+    log_success "Auto-restart wrapper script installed"
+else
+    log_error "installer-wrapper.sh not found! Auto-restart functionality will not be available."
+    exit 1
+fi
 
 # 디스크 공간 확인
 AVAILABLE_SPACE=$(df . | tail -1 | awk '{print $4}')
@@ -965,3 +1045,9 @@ if [[ "$EFI_SUPPORT" != "true" ]]; then
     echo "  대부분의 시스템에서는 문제없이 작동하지만,"
     echo "  최신 UEFI 전용 시스템에서는 부팅이 안될 수 있습니다."
 fi
+
+# 성공적인 완료 시 권한 정리 (재실행 가능하도록)
+log_info "빌드 완료 후 권한 정리 중..."
+sudo chmod -R 755 "$WORK_DIR" 2>/dev/null || true
+sudo chown -R $(whoami):$(whoami) "$WORK_DIR" 2>/dev/null || true
+log_success "권한 정리 완료 - 스크립트 재실행 가능"
