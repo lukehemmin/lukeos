@@ -316,6 +316,17 @@ show_whiptail_menu() {
     fi
 }
 
+# Text box for displaying logs or long text
+show_whiptail_textbox() {
+    local title="$1"
+    local content="$2"
+    local height=${3:-20}
+    local width=${4:-70}
+    
+    whiptail --title "$title" --textbox <(echo -e "$content") "$height" "$width" 3>&1 1>&2 2>&3
+    return $?
+}
+
 # Whiptail input functions
 get_whiptail_input() {
     local title="$1"
@@ -573,18 +584,31 @@ configure_system() {
 # Installation summary with whiptail
 show_summary() {
     local summary="Installation Summary\n\n"
-    summary+="Disk: /dev/$SELECTED_DISK (${DISK_SIZE_GB}GB)\n"
+    summary+="Target Disk: /dev/$SELECTED_DISK (${DISK_SIZE_GB}GB)\n"
     
     if [[ "$INSTALL_TYPE" == "full" ]]; then
-        summary+="Installation Type: Use entire disk\n"
+        summary+="Installation Type: Use entire disk\n\n"
+        summary+="Partition Layout:\n"
+        summary+="  EFI System: ${EFI_SIZE}MB\n"
+        summary+="  Swap: ${SWAP_SIZE}MB (2GB)\n"
+        local root_size=$((DISK_SIZE_GB * 1024 - EFI_SIZE - SWAP_SIZE))
+        summary+="  Root (/): ${root_size}MB (~$((root_size / 1024))GB)\n"
     else
-        summary+="Installation Type: Manual partitioning\n"
-        summary+="EFI Partition: ${EFI_SIZE}MB\n"
-        summary+="Swap Partition: ${SWAP_SIZE}MB\n"
+        summary+="Installation Type: Manual partitioning\n\n"
+        summary+="Partition Layout:\n"
+        summary+="  EFI System: ${EFI_SIZE}MB\n"
+        if [[ "$SWAP_SIZE" != "0" ]]; then
+            summary+="  Swap: ${SWAP_SIZE}MB\n"
+        else
+            summary+="  Swap: Disabled\n"
+        fi
+        local root_size=$((DISK_SIZE_GB * 1024 - EFI_SIZE - SWAP_SIZE))
+        summary+="  Root (/): ${root_size}MB (~$((root_size / 1024))GB)\n"
     fi
     
-    summary+="Hostname: $HOSTNAME\n"
-    summary+="Administrator: $ADMIN_USER\n\n"
+    summary+="\nSystem Configuration:\n"
+    summary+="  Hostname: $HOSTNAME\n"
+    summary+="  Administrator: $ADMIN_USER\n\n"
     summary+="WARNING: All data on /dev/$SELECTED_DISK will be erased!\n\n"
     summary+="Do you want to start the installation?"
     
@@ -725,34 +749,57 @@ perform_installation() {
                 sleep 1
                 ;;
             1) # 파티션 생성
-                if ! parted -s "/dev/$SELECTED_DISK" mklabel gpt >/dev/null 2>&1; then
+                # 디스크 사용 중인지 확인
+                log_info "Checking if disk /dev/$SELECTED_DISK is in use"
+                if mount | grep -q "/dev/$SELECTED_DISK"; then
+                    log_warning "Disk /dev/$SELECTED_DISK has mounted partitions, attempting to unmount"
+                    umount /dev/${SELECTED_DISK}* 2>/dev/null || true
+                fi
+                
+                # 기존 파티션 테이블 정리
+                log_info "Wiping existing partition table on /dev/$SELECTED_DISK"
+                wipefs -a "/dev/$SELECTED_DISK" >/dev/null 2>&1 || true
+                
+                log_info "Creating GPT partition table on /dev/$SELECTED_DISK"
+                if ! parted -s "/dev/$SELECTED_DISK" mklabel gpt 2>>"$INSTALL_LOG"; then
                     failed_step="partition table creation"
+                    log_error "Failed to create GPT partition table on /dev/$SELECTED_DISK"
                     break
                 fi
                 
-                if ! parted -s "/dev/$SELECTED_DISK" mkpart primary fat32 1MiB "${EFI_SIZE}MiB" >/dev/null 2>&1; then
+                log_info "Creating EFI partition (${EFI_SIZE}MB)"
+                if ! parted -s "/dev/$SELECTED_DISK" mkpart primary fat32 1MiB "${EFI_SIZE}MiB" 2>>"$INSTALL_LOG"; then
                     failed_step="EFI partition creation"
+                    log_error "Failed to create EFI partition"
                     break
                 fi
                 
-                if ! parted -s "/dev/$SELECTED_DISK" set 1 esp on >/dev/null 2>&1; then
+                log_info "Setting EFI boot flag"
+                if ! parted -s "/dev/$SELECTED_DISK" set 1 esp on 2>>"$INSTALL_LOG"; then
                     failed_step="EFI flag setting"
+                    log_error "Failed to set EFI boot flag"
                     break
                 fi
                 
                 if [[ "$SWAP_SIZE" != "0" ]]; then
                     local swap_end=$((EFI_SIZE + SWAP_SIZE))
-                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary linux-swap "${EFI_SIZE}MiB" "${swap_end}MiB" >/dev/null 2>&1; then
+                    log_info "Creating swap partition (${SWAP_SIZE}MB)"
+                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary linux-swap "${EFI_SIZE}MiB" "${swap_end}MiB" 2>>"$INSTALL_LOG"; then
                         failed_step="swap partition creation"
+                        log_error "Failed to create swap partition"
                         break
                     fi
-                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary ext4 "${swap_end}MiB" 100% >/dev/null 2>&1; then
+                    log_info "Creating root partition (remaining space)"
+                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary ext4 "${swap_end}MiB" 100% 2>>"$INSTALL_LOG"; then
                         failed_step="root partition creation"
+                        log_error "Failed to create root partition"
                         break
                     fi
                 else
-                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary ext4 "${EFI_SIZE}MiB" 100% >/dev/null 2>&1; then
+                    log_info "Creating root partition (no swap)"
+                    if ! parted -s "/dev/$SELECTED_DISK" mkpart primary ext4 "${EFI_SIZE}MiB" 100% 2>>"$INSTALL_LOG"; then
                         failed_step="root partition creation"
+                        log_error "Failed to create root partition"
                         break
                     fi
                 fi
@@ -985,6 +1032,59 @@ EOF
     echo
 }
 
+# 설치 실패 시 에러 정보 표시
+show_installation_error() {
+    local error_msg="Installation Failed\n\n"
+    
+    if [[ -n "$failed_step" ]]; then
+        error_msg+="Failed at step: $failed_step\n\n"
+    fi
+    
+    error_msg+="Would you like to:\n"
+    error_msg+="• View installation log for details\n"
+    error_msg+="• Return to main menu\n\n"
+    
+    local options=("View Log" "Return to Menu")
+    show_whiptail_menu "Installation Failed" "$error_msg" "${options[@]}"
+    local choice=$?
+    
+    case $choice in
+        0) # View Log
+            if [[ -f "$INSTALL_LOG" ]]; then
+                # Show last 30 lines of log
+                local log_content
+                log_content=$(tail -n 30 "$INSTALL_LOG" 2>/dev/null || echo "Unable to read log file")
+                
+                # Add log viewing dialog
+                show_whiptail_textbox "Installation Log (Last 30 lines)" "$log_content" 25 80
+                
+                # Ask what to do next
+                local next_options=("Try Again" "Return to Menu" "View Full Log")
+                show_whiptail_menu "Next Action" "What would you like to do?" "${next_options[@]}"
+                local next_choice=$?
+                
+                case $next_choice in
+                    0) # Try Again - return to main menu to retry
+                        return
+                        ;;
+                    1) # Return to Menu
+                        return
+                        ;;
+                    2) # View Full Log
+                        show_whiptail_textbox "Full Installation Log" "$(cat "$INSTALL_LOG" 2>/dev/null || echo "Unable to read log file")" 25 80
+                        return
+                        ;;
+                esac
+            else
+                show_whiptail_msgbox "Error" "Log file not found at: $INSTALL_LOG"
+            fi
+            ;;
+        1|255) # Return to Menu or cancelled
+            return
+            ;;
+    esac
+}
+
 # 설치 완료 화면 (시그널 보호)
 show_completion() {
     # 완료 화면에서는 시그널 허용
@@ -1176,8 +1276,11 @@ main_installer() {
         
         # Safe menu display with error handling
         local choice
-        if show_whiptail_menu "$INSTALLER_TITLE" "$WELCOME_MSG" "${main_options[@]}"; then
-            choice=$?
+        show_whiptail_menu "$INSTALLER_TITLE" "$WELCOME_MSG" "${main_options[@]}"
+        choice=$?
+        if [[ $choice -ne 255 ]]; then
+            # Menu selection successful
+            :
         else
             ((menu_retry_count++))
             log_warning "Menu display failed (attempt $menu_retry_count/$max_menu_retries)"
@@ -1213,8 +1316,8 @@ main_installer() {
                 
                 if select_disk; then
                     if select_install_type; then
-                        if configure_partitions; then
-                            if configure_users; then
+                        if configure_users; then
+                            if configure_partitions; then
                                 if configure_system; then
                                     if show_summary; then
                                         if perform_installation; then
@@ -1223,7 +1326,7 @@ main_installer() {
                                         else
                                             # Installation failed, return to main menu
                                             trap 'echo; log_info "Use menu options to exit safely"; sleep 2' INT TERM
-                                            show_whiptail_msgbox "Installation Failed" "Installation failed.\n\nReturning to main menu."
+                                            show_installation_error
                                         fi
                                     fi
                                 fi
@@ -1270,9 +1373,9 @@ main_installer() {
                 clear
                 echo -e "${YELLOW}$EXIT_INSTALLER...${NC}"
                 echo "Installation cancelled."
-                echo "Exiting safely."
-                sleep 1
-                exit 0
+                echo "Shutting down system..."
+                sleep 2
+                shutdown -h now || poweroff
                 ;;
         esac
     done

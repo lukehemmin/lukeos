@@ -1,0 +1,16 @@
+# 1. 새 빌드 디렉토리 생성
+mkdir ~/my-build
+cd ~/my-build
+
+# 2. 세 스크립트 파일 복사
+cp ~/build-custom-iso-safe.sh .
+cp ~/install-to-disk.sh .
+cp ~/installer-wrapper.sh .     # ← 새로 추가된 파일
+
+# 3. 실행 권한 부여
+chmod +x build-custom-iso-safe.sh
+chmod +x install-to-disk.sh
+chmod +x installer-wrapper.sh   # ← 새로 추가된 파일
+
+# 4. 빌드 실행
+./build-custom-iso-safe.sh
